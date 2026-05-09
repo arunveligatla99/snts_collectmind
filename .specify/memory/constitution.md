@@ -1,6 +1,25 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.0.0 → 1.0.1 (PATCH: license correction in Principle XIII)
+Amendment date: 2026-05-09
+Modified principles:
+  XIII. SLM-First, Isolated, Swappable Model Boundary
+        - Corrected license attribution: Phi-4-mini-instruct is MIT-licensed,
+          not Apache 2.0. Qwen2.5-7B-Instruct remains Apache 2.0.
+        - Wording change only; no behavioral or governance change.
+Templates requiring updates:
+  - .specify/templates/plan-template.md  ✅ aligned (no static reference to license claims)
+  - .specify/templates/spec-template.md  ✅ aligned
+  - .specify/templates/tasks-template.md ✅ aligned
+  - docs/adr/0001-pin-covesa-vss.md      ✅ aligned (no license cross-reference)
+Follow-up TODOs:
+  - ADR-0002 (default SLM selection) drafted next; will record Qwen2.5-7B-Instruct
+    (Apache 2.0) as the chosen default with revision SHA pinned to
+    a09a35458c702b33eeacc393d103063234e8bc28.
+
+Original ratification report (preserved for audit):
+==================================================
 Version change: none → 1.0.0 (initial ratification)
 Modified principles: none (first version)
 Added principles:
@@ -133,7 +152,7 @@ The four LangGraph nodes (Orchestrator, Policy Generator, Policy Validator, Poli
 
 ### XIII. SLM-First, Isolated, Swappable Model Boundary (NON-NEGOTIABLE)
 
-The Policy Generator node MUST run an open-weight Small Language Model by default. The default model MUST be named in `research.md` by exact Hugging Face revision SHA. Acceptable defaults at constitution sign-off are Microsoft Phi-4-mini-instruct or Qwen2.5-7B-Instruct, both Apache 2.0 licensed; substitutions require an ADR. LLMs (cloud-hosted or otherwise) are an opt-in upgrade path behind the same interface, never the default. This stance mirrors Sonatus AI Director's published support for both SLMs and LLMs and Sonatus's in-vehicle edge AI thesis; it is a load-bearing portfolio claim, not a cost optimization.
+The Policy Generator node MUST run an open-weight Small Language Model by default. The default model MUST be named in `research.md` by exact Hugging Face revision SHA. Acceptable defaults at constitution sign-off are Microsoft Phi-4-mini-instruct (MIT) or Qwen2.5-7B-Instruct (Apache 2.0); substitutions require an ADR. LLMs (cloud-hosted or otherwise) are an opt-in upgrade path behind the same interface, never the default. This stance mirrors Sonatus AI Director's published support for both SLMs and LLMs and Sonatus's in-vehicle edge AI thesis; it is a load-bearing portfolio claim, not a cost optimization.
 
 The model MUST be served via a real inference runtime, not a stub. Production-equivalent serving uses vLLM with a pinned version. CPU fallback for environments without GPU access uses llama.cpp with a GGUF build of the same model at the same revision SHA. The runtime, the model revision SHA, the quantization profile, and the prompt template version MUST be part of every audit event and every metric label.
 
@@ -233,4 +252,4 @@ Versioning policy:
 
 Compliance review: every PR MUST verify that touched code, tests, and documentation align with the principles above. The reviewer MUST cite the principle that gates the change in the PR description when the change is principle-driven (security, observability, SLO, contracts, audit). Use this constitution and `docs/adr/README.md` for runtime development guidance.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-09 | **Last Amended**: 2026-05-09
+**Version**: 1.0.1 | **Ratified**: 2026-05-09 | **Last Amended**: 2026-05-09
