@@ -8,7 +8,7 @@ This directory holds the ADRs that govern CollectMind. ADRs are written in MADR 
 |---|---|---|---|
 | [ADR-0001](0001-pin-covesa-vss.md) | COVESA VSS version pin | During `/speckit-constitution` finalization | The constitution requires VSS as the canonical signal vocabulary; the version must be fixed before any spec or plan references it. |
 | [ADR-0002](0002-default-slm-qwen2-5-7b-instruct.md) | Default Small Language Model (model name, revision SHA, license, runtime, quantization, eval-suite baseline, upgrade and rollback procedure) | Between `/speckit-constitution` and `/speckit-plan` | Answers Decision D3. The plan's MODEL LAYER section assumes the choice has been made. |
-| ADR-0003 | Constrained-decoding library (outlines vs instructor vs equivalent) | Between `/speckit-constitution` and `/speckit-plan` | Answers Decision D4. The plan's MODEL LAYER section names the library. |
+| [ADR-0003](0003-constrained-decoding-library.md) | Constrained-decoding library (outlines vs instructor vs equivalent) | Between `/speckit-constitution` and `/speckit-plan` | Answers Decision D4. The plan's MODEL LAYER section names the library. |
 | ADR-0004 | Deterministic-fingerprint Policy Generator stub for smoke and load tests | As part of `/speckit-plan` output | The stub is a CI-design decision that depends on the test topology defined by the plan. |
 | ADR-0005 | SLM hosting topology on AWS (ECS on EC2 with g5/g6 vs EKS with a GPU node group) | As part of `/speckit-plan` output | Infrastructure decision that depends on the plan's compute module. |
 
