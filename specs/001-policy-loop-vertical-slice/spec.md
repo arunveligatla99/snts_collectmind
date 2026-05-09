@@ -155,7 +155,7 @@ A code reviewer opens the project repository and sees passing automated tests in
 #### Quality gates
 
 - **FR-021**: The system MUST ship with automated tests in continuous integration that exercise every functional requirement above: unit tests for internal logic, contract tests for every external surface, an integration test for the end-to-end finding-to-outcome path against the real local stack, and a load test that asserts the service-level objectives in the Success Criteria.
-- **FR-022**: The system MUST ship with a runbook entry for every alert it can raise. Continuous integration MUST fail the build if any alert rule defined in the repository lacks a corresponding runbook entry, verified by an automated check.
+- **FR-022**: The system MUST ship with a runbook entry for every alert it can raise. Continuous integration MUST fail the build if any alert rule defined in the repository lacks a corresponding runbook entry, verified by an automated check. The PR-tier `PolicyGeneratorClient` contract test against the real SLM MUST budget no more than 60 seconds of warm-path wall time for its assertion phase; cold start (image pull, weight load, FSM compilation) MUST be excluded from that budget and bounded separately by the readiness-probe timeout, with the warm-up performed by a session-scoped fixture before any assertion runs.
 - **FR-022a**: SC-005's recovery-from-outage criterion MUST be exercised by an integration test that simulates a controllable internal-dependency outage of bounded duration and asserts that queued events drain within five minutes of recovery and no event is lost.
 
 ### Key Entities

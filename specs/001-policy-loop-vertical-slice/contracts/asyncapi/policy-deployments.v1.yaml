@@ -1,0 +1,81 @@
+asyncapi: 3.0.0
+info:
+  title: CollectMind Policy Deployments event channel
+  version: 1.0.0
+  description: |
+    Internal stream of deployment events produced by the deployer node when a validated
+    policy is delivered to the downstream control plane.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+servers:
+  local:
+    host: kafka:9092
+    protocol: kafka
+  cloud:
+    host: msk.collectmind.example.com:9094
+    protocol: kafka-secure
+channels:
+  policy-deployments.v1:
+    address: policy-deployments.v1
+    messages:
+      PolicyDeploymentMessage:
+        $ref: '#/components/messages/PolicyDeploymentMessage'
+operations:
+  produceDeployment:
+    action: send
+    channel:
+      $ref: '#/channels/policy-deployments.v1'
+    summary: Deployer emits a deployment record event for downstream observability
+    messages:
+      - $ref: '#/channels/policy-deployments.v1/messages/PolicyDeploymentMessage'
+  consumeDeployment:
+    action: receive
+    channel:
+      $ref: '#/channels/policy-deployments.v1'
+    summary: Feedback worker consumes deployments to schedule window-close evaluation
+    messages:
+      - $ref: '#/channels/policy-deployments.v1/messages/PolicyDeploymentMessage'
+components:
+  messages:
+    PolicyDeploymentMessage:
+      name: PolicyDeployment
+      contentType: application/json
+      headers:
+        type: object
+        required: [tenant_id, correlation_id]
+        properties:
+          tenant_id:
+            type: string
+          correlation_id:
+            type: string
+      payload:
+        $ref: '#/components/schemas/PolicyDeployment'
+  schemas:
+    PolicyDeployment:
+      type: object
+      required: [deployment_id, policy_id, version, vehicle_scope, status, deployed_at, expires_at]
+      properties:
+        deployment_id:
+          type: string
+        policy_id:
+          type: string
+        version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+        vehicle_scope:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [requested, accepted, rejected, expired]
+        deployed_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        downstream_response:
+          type: object
+          additionalProperties: true

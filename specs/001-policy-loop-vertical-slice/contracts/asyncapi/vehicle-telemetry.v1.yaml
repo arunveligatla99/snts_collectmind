@@ -1,0 +1,84 @@
+asyncapi: 3.0.0
+info:
+  title: CollectMind Vehicle Telemetry event channel
+  version: 1.0.0
+  description: |
+    Synthetic post-collection vehicle telemetry produced by the project-owned generator
+    (or, later, the real telemetry source). Consumed by the feedback worker to evaluate
+    hypothesis confirmation per FR-009.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+servers:
+  local:
+    host: kafka:9092
+    protocol: kafka
+  cloud:
+    host: msk.collectmind.example.com:9094
+    protocol: kafka-secure
+channels:
+  vehicle-telemetry.v1:
+    address: vehicle-telemetry.v1
+    messages:
+      TelemetryObservationMessage:
+        $ref: '#/components/messages/TelemetryObservationMessage'
+operations:
+  produceTelemetry:
+    action: send
+    channel:
+      $ref: '#/channels/vehicle-telemetry.v1'
+    summary: Generator emits per-signal observations attributed to a deployed policy
+    messages:
+      - $ref: '#/channels/vehicle-telemetry.v1/messages/TelemetryObservationMessage'
+  consumeTelemetry:
+    action: receive
+    channel:
+      $ref: '#/channels/vehicle-telemetry.v1'
+    summary: Feedback worker consumes telemetry to evaluate the hypothesis at window close
+    messages:
+      - $ref: '#/channels/vehicle-telemetry.v1/messages/TelemetryObservationMessage'
+components:
+  messages:
+    TelemetryObservationMessage:
+      name: TelemetryObservation
+      contentType: application/json
+      headers:
+        type: object
+        required: [tenant_id, correlation_id]
+        properties:
+          tenant_id:
+            type: string
+            minLength: 1
+          correlation_id:
+            type: string
+      payload:
+        $ref: '#/components/schemas/TelemetryObservation'
+  schemas:
+    TelemetryObservation:
+      type: object
+      required: [vehicle_id, signal_name, value, observed_at, source]
+      properties:
+        vehicle_id:
+          type: string
+          minLength: 1
+        signal_name:
+          type: string
+          description: VSS v6.0 signal name
+        value:
+          type: number
+        observed_at:
+          type: string
+          format: date-time
+        source:
+          type: string
+          enum: [simulator, real]
+        policy_ref:
+          type: object
+          description: Optional pointer to the deployed policy that produced this observation in the simulated path
+          properties:
+            tenant_id:
+              type: string
+            policy_id:
+              type: string
+            version:
+              type: string
