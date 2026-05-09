@@ -1,0 +1,32 @@
+# GPU profile: vLLM v0.20.1 with the Qwen2.5-7B-Instruct revision pinned by ADR-0002.
+# This Dockerfile is wired in by Phase 3 US1 (T075, T017). Phase 2 foundation does not build it.
+
+# Pinned by digest in production. The tag form is shown for readability; CI substitutes the digest.
+FROM vllm/vllm-openai:v0.20.1
+
+ENV PYTHONUNBUFFERED=1 \
+    HF_HOME=/root/.cache/huggingface \
+    SLM_REVISION_SHA=a09a35458c702b33eeacc393d103063234e8bc28
+
+# Install outlines for guided decoding (per ADR-0003).
+RUN pip install --no-cache-dir "outlines==1.2.13"
+
+COPY config/slm/qwen2.5-7b-instruct/manifest.sha256 /opt/manifest.sha256
+COPY scripts/verify_slm_manifest.py /opt/verify_slm_manifest.py
+COPY scripts/fetch_qwen2.5_weights.py /opt/fetch_qwen2.5_weights.py
+
+# Bake weights at build time, verify SHA. Weight cache directory mirrors the manifest layout.
+RUN python /opt/fetch_qwen2.5_weights.py --revision $SLM_REVISION_SHA --cache /root/.cache/huggingface
+RUN python /opt/verify_slm_manifest.py /root/.cache/huggingface /opt/manifest.sha256
+
+EXPOSE 8000
+HEALTHCHECK --interval=10s --timeout=10s --retries=30 \
+  CMD curl -fsS http://localhost:8000/health || exit 1
+
+ENTRYPOINT ["python", "-m", "vllm.entrypoints.openai.api_server", \
+  "--model", "Qwen/Qwen2.5-7B-Instruct", \
+  "--revision", "a09a35458c702b33eeacc393d103063234e8bc28", \
+  "--guided-decoding-backend", "outlines", \
+  "--dtype", "bfloat16", \
+  "--host", "0.0.0.0", \
+  "--port", "8000"]

@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        additional_dependencies: [pydantic==2.10.4, structlog==24.4.0, types-PyYAML]
+        args: [--config-file=mypy.ini]
+        files: ^src/
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.22.1
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: no-todo-fixme
+        name: No TODO or FIXME (Principle III)
+        entry: python scripts/check_no_todo_fixme.py
+        language: system
+        pass_filenames: false
+        always_run: true

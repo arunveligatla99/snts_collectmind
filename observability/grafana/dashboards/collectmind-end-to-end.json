@@ -1,0 +1,104 @@
+{
+  "title": "CollectMind End-to-End",
+  "uid": "collectmind-e2e",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["collectmind", "feature-001"],
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Ingest rate (events/s)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [{ "expr": "sum(rate(diagnostic_findings_received_total[1m]))", "refId": "A" }]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Generation funnel",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 6, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "sum(rate(diagnostic_findings_received_total[1m]))", "refId": "received", "legendFormat": "received" },
+        { "expr": "sum(rate(policy_generated_total[1m]))", "refId": "generated", "legendFormat": "generated" },
+        { "expr": "sum(rate(policy_validated_total[1m]))", "refId": "validated", "legendFormat": "validated" },
+        { "expr": "sum(rate(policy_deployed_total[1m]))", "refId": "deployed", "legendFormat": "deployed" },
+        { "expr": "sum(rate(policy_outcome_confirmed_total[1m]))", "refId": "confirmed", "legendFormat": "confirmed" },
+        { "expr": "sum(rate(policy_outcome_ruled_out_total[1m]))", "refId": "ruled_out", "legendFormat": "ruled_out" },
+        { "expr": "sum(rate(policy_outcome_no_data_total[1m]))", "refId": "no_data", "legendFormat": "no_data" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Validation pass rate",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 4, "w": 6, "h": 4 },
+      "targets": [{ "expr": "sum(rate(policy_validated_total[5m])) / clamp_min(sum(rate(policy_generated_total[5m])), 1)", "refId": "A" }]
+    },
+    {
+      "id": 4,
+      "type": "histogram",
+      "title": "Time-to-deploy (p50/p95/p99)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(time_to_deploy_seconds_bucket[5m])) by (le))", "refId": "p50", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(time_to_deploy_seconds_bucket[5m])) by (le))", "refId": "p95", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(time_to_deploy_seconds_bucket[5m])) by (le))", "refId": "p99", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Hypothesis confirmation rate",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 12, "y": 8, "w": 6, "h": 4 },
+      "targets": [{ "expr": "sum(rate(policy_outcome_confirmed_total[15m])) / clamp_min(sum(rate(policy_outcome_total[15m])), 1)", "refId": "A" }]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Dead-letter count",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 18, "y": 8, "w": 6, "h": 4 },
+      "targets": [{ "expr": "sum(dead_letter_queue_depth)", "refId": "A" }]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Authentication-failure rate",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 4 },
+      "targets": [{ "expr": "sum(rate(authentication_failure_total[5m]))", "refId": "A" }]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "SLM generation latency p95",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 4 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(slm_generation_latency_seconds_bucket[5m])) by (le))", "refId": "A" }]
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "SLM constraint-violation rate",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 12, "y": 16, "w": 6, "h": 4 },
+      "targets": [{ "expr": "sum(rate(slm_constraint_violation_total[5m]))", "refId": "A" }]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Active SLM weight SHA",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 18, "y": 16, "w": 6, "h": 4 },
+      "targets": [{ "expr": "sum by (sha) (slm_weight_sha_active) > 0", "refId": "A" }]
+    }
+  ]
+}

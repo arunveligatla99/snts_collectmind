@@ -1,0 +1,343 @@
+openapi: 3.1.0
+info:
+  title: CollectMind Operator Query API
+  version: 1.0.0
+  description: |
+    Read-only operator interface over the registry, deployments, outcomes, and audit events.
+    Authenticated with OAuth2 client-credentials JWT; tenant_id claim scopes every query.
+    Read p95 SLO under 200 ms at 100 reads/s (per Spec SC-004).
+  license:
+    name: Apache-2.0
+servers:
+  - url: https://collectmind.local/api/v1
+  - url: https://api.collectmind.example.com/v1
+security:
+  - bearerAuth: []
+paths:
+  /policies/{policy_id}:
+    get:
+      operationId: getPolicyById
+      summary: Get the active version of a policy
+      parameters:
+        - in: path
+          name: policy_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionPolicySpec'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /policies/{policy_id}/versions:
+    get:
+      operationId: listPolicyVersions
+      summary: List the version history of a policy (newest first)
+      parameters:
+        - in: path
+          name: policy_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollectionPolicySpec'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /vehicle-groups/{group_id}/active-policy:
+    get:
+      operationId: getActivePolicyForGroup
+      summary: Get the active policy version targeting a given vehicle group
+      parameters:
+        - in: path
+          name: group_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionPolicySpec'
+        '404':
+          description: No active policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /findings/{finding_id}/outcome:
+    get:
+      operationId: getOutcomeForFinding
+      summary: Get the outcome record linked to a diagnostic finding
+      parameters:
+        - in: path
+          name: finding_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Outcome record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyOutcome'
+        '404':
+          description: Not found (finding unknown or outcome not yet evaluated)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /audit/{correlation_id}:
+    get:
+      operationId: getAuditTrail
+      summary: Return the audit-event chain for a correlation identifier
+      parameters:
+        - in: path
+          name: correlation_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Audit events in occurrence order
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditEvent'
+        '404':
+          description: Unknown correlation id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CollectionPolicySpec:
+      type: object
+      required:
+        - policy_id
+        - version
+        - signals
+        - trigger_conditions
+        - collection_window_hours
+        - hypothesis
+        - vehicle_scope
+        - data_governance_flags
+        - confidence_threshold
+        - generated_from_session_id
+        - originating_finding
+      properties:
+        policy_id:
+          type: string
+        version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+        signals:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [vss_name, sample_rate_hz, priority]
+            properties:
+              vss_name:
+                type: string
+              sample_rate_hz:
+                type: number
+                exclusiveMinimum: 0
+              priority:
+                type: integer
+                minimum: 0
+                maximum: 10
+        trigger_conditions:
+          type: array
+          items:
+            type: object
+            required: [kind, params]
+            properties:
+              kind:
+                type: string
+                enum: [threshold, time_window, geofence, scheduled]
+              params:
+                type: object
+                additionalProperties: true
+        collection_window_hours:
+          type: integer
+          minimum: 1
+          maximum: 168
+        hypothesis:
+          type: string
+        vehicle_scope:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        data_governance_flags:
+          type: object
+          required: [pii_consent, has_pii_signal]
+          properties:
+            pii_consent:
+              type: boolean
+            has_pii_signal:
+              type: boolean
+        confidence_threshold:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        generated_from_session_id:
+          type: string
+        originating_finding:
+          type: object
+          required: [tenant_id, finding_id]
+          properties:
+            tenant_id:
+              type: string
+            finding_id:
+              type: string
+        prompt_template_version:
+          type: string
+        slm_repo:
+          type: string
+        slm_revision_sha:
+          type: string
+          minLength: 40
+          maxLength: 40
+        slm_runtime:
+          type: string
+          enum: [vllm, llama_cpp, stub]
+        slm_runtime_version:
+          type: string
+        slm_quantization:
+          type: string
+          enum: [bf16, gguf-q4_k_m, none]
+        slm_decoding_seed:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    PolicyOutcome:
+      type: object
+      required: [outcome_id, originating_finding, hypothesis_state, evaluated_at]
+      properties:
+        outcome_id:
+          type: string
+        originating_finding:
+          type: object
+          required: [tenant_id, finding_id]
+          properties:
+            tenant_id:
+              type: string
+            finding_id:
+              type: string
+        policy_ref:
+          type: object
+          properties:
+            tenant_id:
+              type: string
+            policy_id:
+              type: string
+            version:
+              type: string
+        hypothesis_state:
+          type: string
+          enum: [confirmed, ruled_out, no_data]
+        evaluated_at:
+          type: string
+          format: date-time
+        signals_collected_count:
+          type: integer
+          minimum: 0
+        data_quality_score:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        evidence_summary:
+          type: object
+          additionalProperties: true
+    AuditEvent:
+      type: object
+      required: [event_id, kind, occurred_at, correlation_id, principal_subject]
+      properties:
+        event_id:
+          type: string
+        kind:
+          type: string
+          enum: [accepted, rejected, generated, validated, deployed, outcome, erasure]
+        occurred_at:
+          type: string
+          format: date-time
+        correlation_id:
+          type: string
+        principal_subject:
+          type: string
+        slm_repo:
+          type: string
+        slm_revision_sha:
+          type: string
+        slm_runtime:
+          type: string
+        slm_runtime_version:
+          type: string
+        slm_quantization:
+          type: string
+        slm_decoding_seed:
+          type: integer
+        prompt_template_version:
+          type: string
+        inbound_schema_version:
+          type: string
+        time_acceleration_factor:
+          type: number
+        policy_ref:
+          type: object
+        deployment_ref:
+          type: object
+        outcome_ref:
+          type: object
+    Error:
+      type: object
+      required: [code, status, reason]
+      properties:
+        code:
+          type: string
+        status:
+          type: integer
+        reason:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

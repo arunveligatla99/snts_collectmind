@@ -1,0 +1,33 @@
+target-version = "py311"
+line-length = 110
+extend-exclude = [
+  "specs/",
+  ".specify/",
+  "models/",
+  "tests/fixtures/policy_corpus/",
+]
+
+[lint]
+select = [
+  "E", "F", "W",       # pycodestyle + pyflakes
+  "I",                  # isort
+  "B",                  # flake8-bugbear
+  "UP",                 # pyupgrade
+  "ASYNC",              # async best practices
+  "S",                  # bandit-lite
+  "RUF",                # ruff-specific
+  "PL",                 # pylint subset
+  "SIM",                # flake8-simplify
+  "ERA",                # eradicate (no commented-out code)
+]
+ignore = [
+  "S101",  # asserts allowed in tests
+  "PLR0913", # too many arguments — DI pattern means many fastapi Depends params
+]
+
+[lint.per-file-ignores]
+"tests/**" = ["S", "PLR2004"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

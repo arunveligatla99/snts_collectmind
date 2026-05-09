@@ -1,0 +1,90 @@
+asyncapi: 3.0.0
+info:
+  title: CollectMind Policy Outcomes event channel
+  version: 1.0.0
+  description: |
+    Stream of feedback-loop outcomes produced when a deployed policy's collection window
+    closes. Each event links to the originating diagnostic finding for end-to-end traceability.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+servers:
+  local:
+    host: kafka:9092
+    protocol: kafka
+  cloud:
+    host: msk.collectmind.example.com:9094
+    protocol: kafka-secure
+channels:
+  policy-outcomes.v1:
+    address: policy-outcomes.v1
+    messages:
+      PolicyOutcomeMessage:
+        $ref: '#/components/messages/PolicyOutcomeMessage'
+operations:
+  produceOutcome:
+    action: send
+    channel:
+      $ref: '#/channels/policy-outcomes.v1'
+    summary: Feedback worker emits the outcome record for a closed collection window
+    messages:
+      - $ref: '#/channels/policy-outcomes.v1/messages/PolicyOutcomeMessage'
+  consumeOutcome:
+    action: receive
+    channel:
+      $ref: '#/channels/policy-outcomes.v1'
+    summary: Downstream consumers (dashboard, audit projector) consume outcomes
+    messages:
+      - $ref: '#/channels/policy-outcomes.v1/messages/PolicyOutcomeMessage'
+components:
+  messages:
+    PolicyOutcomeMessage:
+      name: PolicyOutcome
+      contentType: application/json
+      headers:
+        type: object
+        required: [tenant_id, correlation_id]
+        properties:
+          tenant_id:
+            type: string
+          correlation_id:
+            type: string
+      payload:
+        $ref: '#/components/schemas/PolicyOutcome'
+  schemas:
+    PolicyOutcome:
+      type: object
+      required: [outcome_id, originating_finding, hypothesis_state, evaluated_at]
+      properties:
+        outcome_id:
+          type: string
+        originating_finding:
+          type: object
+          required: [tenant_id, finding_id]
+          properties:
+            tenant_id:
+              type: string
+            finding_id:
+              type: string
+        policy_ref:
+          type: object
+          properties:
+            tenant_id:
+              type: string
+            policy_id:
+              type: string
+            version:
+              type: string
+        hypothesis_state:
+          type: string
+          enum: [confirmed, ruled_out, no_data]
+        evaluated_at:
+          type: string
+          format: date-time
+        signals_collected_count:
+          type: integer
+          minimum: 0
+        data_quality_score:
+          type: number
+          minimum: 0.0
+          maximum: 1.0

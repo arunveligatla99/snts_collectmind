@@ -1,0 +1,35 @@
+# CPU-fallback SLM profile: llama.cpp server with GGUF Q4_K_M of Qwen2.5-7B-Instruct.
+# This Dockerfile is wired in by Phase 3 US1 (T077). Phase 2 foundation does not build it.
+
+FROM python:3.11.9-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    LLAMA_CPP_VERSION=b9090
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    curl \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir "llama-cpp-python==0.3.5" "outlines==1.2.13"
+
+COPY config/slm/qwen2.5-7b-instruct/manifest.sha256 /app/manifest.sha256
+COPY scripts/verify_slm_manifest.py /app/verify_slm_manifest.py
+
+# Weights are mounted at runtime from a host cache keyed by SHA, not baked into the image.
+VOLUME /weights
+
+EXPOSE 8000
+HEALTHCHECK --interval=10s --timeout=5s --retries=30 \
+  CMD python /app/verify_slm_manifest.py /weights /app/manifest.sha256 || exit 1
+
+CMD ["python", "-m", "llama_cpp.server", \
+  "--model", "/weights/qwen2.5-7b-instruct-q4_k_m.gguf", \
+  "--host", "0.0.0.0", \
+  "--port", "8000", \
+  "--n_ctx", "8192"]
