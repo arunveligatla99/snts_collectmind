@@ -1,0 +1,18 @@
+{
+  "policy_id": "policy-fixed-001",
+  "version": "1.0.0",
+  "signals": [
+    {"vss_name": "Vehicle.Chassis.Brake.PadWear", "sample_rate_hz": 1.0, "priority": 5},
+    {"vss_name": "Vehicle.Powertrain.CombustionEngine.EngineOilTemperature", "sample_rate_hz": 2.0, "priority": 4}
+  ],
+  "trigger_conditions": [
+    {"kind": "time_window", "params": {"window_hours": 72}}
+  ],
+  "collection_window_hours": 72,
+  "hypothesis": "rotor temperature excursions correlated with mileage",
+  "vehicle_scope": ["VIN-fixed-001", "VIN-fixed-002", "VIN-fixed-003"],
+  "data_governance_flags": {"pii_consent": false, "has_pii_signal": false},
+  "confidence_threshold": 0.7,
+  "generated_from_session_id": "session-fixed-001",
+  "originating_finding": {"tenant_id": "feature-001-default", "finding_id": "F-fixed-001"}
+}

@@ -22,7 +22,15 @@ RUN pip install --no-cache-dir \
   "opentelemetry-sdk==1.29.0" \
   "opentelemetry-exporter-otlp==1.29.0" \
   "opentelemetry-instrumentation-fastapi==0.50b0" \
-  "prometheus-client==0.21.1"
+  "prometheus-client==0.21.1" \
+  "ulid-py==1.1.0" \
+  "pyyaml==6.0.2"
+
+# Bundle prompts, contracts, configs, fixtures used at runtime.
+COPY prompts /app/prompts
+COPY config /app/config
+COPY contracts /app/contracts
+COPY tests/fixtures /app/tests/fixtures
 
 COPY src/collectmind /app/collectmind
 
