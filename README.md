@@ -1,9 +1,12 @@
 # CollectMind
 
 [![CI](https://github.com/ArunVeligatla/Sonatus/actions/workflows/ci.yaml/badge.svg)](.github/workflows/ci.yaml)
-[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A585%25-brightgreen)](pyproject.toml)
+[![Coverage](https://img.shields.io/badge/coverage-86.24%25-brightgreen)](pyproject.toml)
+[![Feature 001](https://img.shields.io/badge/feature--001-shipped-brightgreen)](docs/runbook/feature-001-readiness-review.md)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Constitution](https://img.shields.io/badge/constitution-v1.0.1-blueviolet)](.specify/memory/constitution.md)
+
+> **Feature 001 — `policy-loop-vertical-slice` — is shipped** (commits `990b437` + `a49939e`). Production-readiness review at [`docs/runbook/feature-001-readiness-review.md`](docs/runbook/feature-001-readiness-review.md) walks every NON-NEGOTIABLE constitutional principle (IV, VII, IX, X, XI, XIII, XIV) with a named artifact. Three Phase-7 follow-ups listed in [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md). Next feature: `002-multi-tenant-isolation` (not yet started).
 
 **CollectMind closes the diagnostic-to-collection loop that Sonatus's AI Technician and Collector AI products currently bridge manually.** When the diagnostic layer surfaces a hypothesis ("brake-wear early-stage anomaly on these three vehicles"), CollectMind generates a typed Collector AI policy with a self-hosted Small Language Model under schema-constrained decoding, validates it against the COVESA VSS v6.0 signal vocabulary, persists it as an immutable, lineage-tagged record, deploys it through the existing Collector AI API, and (after the simulated collection window closes) writes an outcome record that links back to the originating finding. Every operation is observable in a single Grafana dashboard, paged on SLO breach with a linked runbook entry, and gated by a tiered CI pipeline.
 
@@ -46,7 +49,7 @@ Then publish a brake-wear diagnostic finding and observe the end-to-end loop (to
 - **Decisions log**: [`docs/DECISIONS.md`](docs/DECISIONS.md) — process and pattern decisions outside the ADR cadence.
 - **Spec-kit feature**: [`specs/001-policy-loop-vertical-slice/`](specs/001-policy-loop-vertical-slice/) — spec, plan, research, data model, contracts, quickstart, tasks, checklists.
 - **Architecture Decision Records**: [`docs/adr/`](docs/adr/) — six ADRs (VSS pin, SLM selection, decoding library, stub, hosting topology, dev-only client).
-- **Runbooks**: [`docs/runbook/`](docs/runbook/) and [`observability/runbooks/INDEX.md`](observability/runbooks/INDEX.md).
+- **Runbooks**: [`docs/runbook/`](docs/runbook/) (includes the [feature-001 readiness review](docs/runbook/feature-001-readiness-review.md), the closure artifact) and [`observability/runbooks/INDEX.md`](observability/runbooks/INDEX.md).
 - **Threat model**: [`docs/security/threat-model.md`](docs/security/threat-model.md) — six threats (3 spec + 3 R-019) mapped to FRs.
 - **Example payload**: [`docs/examples/finding-brake-wear.json`](docs/examples/finding-brake-wear.json) — referenced by the quickstart.
 - **API reference**: [`docs/api/openapi.yaml`](docs/api/openapi.yaml) — generated on every build (T132 drift gate in `ci.yaml`).

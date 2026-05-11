@@ -3,60 +3,65 @@
 **Updated**: 2026-05-11
 **Branch**: `001-policy-loop-vertical-slice`
 **Constitution**: v1.0.1 at `.specify/memory/constitution.md`
+**Status**: **Feature 001 — `policy-loop-vertical-slice` — is shipped** (commits `990b437` + `a49939e`). Closure artifact: [`docs/runbook/feature-001-readiness-review.md`](runbook/feature-001-readiness-review.md). Next feature: `002-multi-tenant-isolation` — **not yet started**.
 
-## Phase status
+## Phase status (feature 001 — all phases closed)
 
 | Phase | Range | Status | Anchor commit |
 |---|---|---|---|
 | Phase 1: Setup (T001–T019) | Repo scaffolding, tooling, Compose stack | **Complete** | `50ade89` |
 | Phase 2: Foundational (T020–T047, gap at T036) | VSS pin, weight manifest, migrations, OAuth2 verifier, OTel, Kafka topics, error model, runbook stubs, contracts mirrored | **Complete** | `50ade89` |
-| Phase 3: US1 — Operator end-to-end policy loop (T048–T104) | Tests in red phase, then full US1 implementation | **Complete** | `b9fddc8` (US1 implementation); `9c4bd7d` (T048–T064 tests red phase); `7dd2723` (Phase 3 verification fixes); `d5f4aa5` (ADR-0006 + startup guard + vLLM CI decoding-strict check) |
-| Phase 4: US2 — On-call observes pipeline (T105–T115) | Dashboard JSON, alert rules, runbook pages, alert-rule parity gate, Alertmanager + local webhook | **Complete** | `d80fc84` (US2 implementation); `3266b13` (T105–T109 tests red phase); `c443e2c` (Phase 4 closure docs) |
-| Phase 5: US3 — Reviewer trusts the system (T116–T133) | Locust load (smoke/full/soak), CI workflows (PR + workflow_dispatch + nightly + record-corpus), Trivy + Syft + gitleaks, custom guards, full Terraform module set per ADR-0005, threat model, README polish | **Complete** | `fe9eb41` (impl); `237d122` (closure docs) |
-| Phase 6: Polish & closure (T134–T141) | Coverage sweep to 86.24%, ruff + mypy strict clean, dashboard-lag SLO measured, ADR-0002 eval baseline gating note, /docs cross-link, quickstart end-to-end re-run, SPECKIT block verified, production-readiness review | **Complete** | `990b437` |
+| Phase 3: US1 — Operator end-to-end policy loop (T048–T104) | Tests in red phase, then full US1 implementation | **Complete** | `b9fddc8` (impl), `9c4bd7d` (tests red phase), `7dd2723` (verification fixes), `d5f4aa5` (ADR-0006 + startup guard) |
+| Phase 4: US2 — On-call observes pipeline (T105–T115) | Dashboard JSON, alert rules, runbook pages, alert-rule parity gate, Alertmanager + local webhook | **Complete** | `d80fc84` (impl), `3266b13` (tests red phase), `c443e2c` (closure docs) |
+| Phase 5: US3 — Reviewer trusts the system (T116–T133) | Locust load, CI workflows, Trivy + Syft + gitleaks, custom guards, full Terraform module set, threat model, README polish | **Complete** | `fe9eb41` (impl), `237d122` (closure docs) |
+| Phase 6: Polish & closure (T134–T141) | Coverage sweep to 86.24%, ruff + mypy strict clean, dashboard-lag SLO measured, ADR-0002 eval baseline gating note, /docs cross-link, quickstart re-run, SPECKIT block verified, production-readiness review | **Complete** | `990b437` (impl), `a49939e` (closure docs) |
 
-**Feature 001 closed.** T142 (PII-strip CI gate, SC-007) is intentionally deferred to Phase 7 per the user's instruction (Phase 6 = T134–T141 only).
+**Feature 001 closed.** T142 (PII-strip CI gate, SC-007) is intentionally deferred to Phase 7 per the user's explicit Phase 6 task-set (`T134–T141` only).
 
 T036 is intentionally absent (build-tooling gate moved to `scripts/check_runbook_completeness.py` at T113; see `docs/DECISIONS.md`).
 
-## Test bar at Phase 6 closure (feature 001 final)
+## Final test bar — feature 001
 
-| Tier | Pass | Fail | Skip | Wall | Δ vs Phase 5 |
-|---|---|---|---|---|---|
-| Unit | 214 | 0 | 0 | 5 s | +150 (twenty new files for T134) |
-| Contract | 41 | 0 | 0 | ~200 s | 0 |
-| Integration | 14 | 0 | 0 | ~225 s | 0 |
-| Load (smoke, local) | 280 reqs, 0 failures, p50=50ms | 0 | n/a | 60 s | 0 |
-| Coverage | **86.24%** | n/a | n/a | n/a | +52.6pp (was 33.65% on Phase 5 baseline) |
+| Tier | Pass | Fail | Skip | Wall |
+|---|---|---|---|---|
+| Unit | 214 | 0 | 0 | 5 s |
+| Contract | 41 | 0 | 0 | ~200 s |
+| Integration | 14 | 0 | 0 | ~225 s |
+| Load (smoke, local) | 280 reqs, 0 failures, p50 = 50 ms | n/a | n/a | 60 s |
+| **Coverage** | **86.24%** | n/a | n/a | n/a |
 
 Plus every CI guard green locally:
-- `scripts/check_no_todo_fixme.py` — Constitution Principle III
-- `scripts/check_slm_pinning.py` — Constitution Principle XIV + ADR-0002
+- `ruff check` + `ruff format --check` — code quality (Principle IV / code standards)
+- `mypy --strict` — typing (Principle IV / code standards)
+- `scripts/check_no_todo_fixme.py` — Principle III
+- `scripts/check_slm_pinning.py` — Principle XIV + ADR-0002
 - `scripts/check_runbook_completeness.py` — FR-022
 - `python -m collectmind.openapi.dump` diff vs `docs/api/openapi.yaml` — T132
-- `ruff check` + `ruff format --check` — Constitution Code Quality Standards
-- `mypy --strict` — Constitution Code Quality Standards
 
-Zero verification cycles in Phase 6. Two Phase-1 leftovers fixed by T134 work (dashboard provisioner Counter-suffix bug; `check_no_todo_fixme.py` venv exclusion narrow match).
+## Recorded measurements (from real local runs, no fabrication)
+
+| What | Value | Budget | Headroom | Source |
+|---|---|---|---|---|
+| Dashboard ingest-to-Prometheus visibility (SC-006), max of 5 runs | **2.11 s** | 10 s | ~5× | T136, `observability/runbooks/slo-006-dashboard-lag.md` |
+| Dashboard ingest-to-Prometheus visibility (SC-006), mean | 1.98 s | 10 s | ~5× | T136 |
+| Quickstart end-to-end (SC-008), warm Compose stack | **27.32 s** | 600 s | ~22× | T139, `docs/runbook/feature-001-readiness-review.md` |
+| Coverage (Principle IV) | **86.24%** | 85% | +1.24 pp over floor | T134, `pyproject.toml` |
+| Smoke load — local (T134/T116) | 280 reqs / 0 failures / p50 50 ms in 60 s | SC-001 p50 4 s | ~80× | T134, T116 |
+
+Measurements that require workflow-dispatch / nightly runs (SC-001 p95 12 s under SC-002 load; SC-002 1000 events/s/tenant for 30 min ≥99.9% success; SC-003 24-hour soak memory growth ≤5%, error rate ≤0.1%) are gated to `.github/workflows/ci-workflow-dispatch.yaml` and `.github/workflows/nightly.yaml` per Principle XIV; the assertions are enforced inside the Locust quitting hooks (`tests/load/locustfile_full.py`, `tests/load/locustfile_soak.py`) plus the nightly workflow's post-run RSS-growth check.
 
 ## Stack-up
 
 ```bash
-# Bring the foundation stack up.
 docker compose -f infra/compose/docker-compose.yaml up -d
 until curl -fsS http://localhost:8081/ready >/dev/null 2>&1; do sleep 2; done && echo READY
 ```
 
-Endpoints:
-- Orchestration / Query API: <http://localhost:8081>
-- Grafana: <http://localhost:3000>
-- Prometheus: <http://localhost:9090>
-- Alertmanager: <http://localhost:9093>
-- Local webhook receiver: <http://localhost:9099>
+Endpoints: orchestration/query API <http://localhost:8081>; Grafana <http://localhost:3000>; Prometheus <http://localhost:9090>; Alertmanager <http://localhost:9093>; local webhook receiver <http://localhost:9099>.
 
 ## Smoke test
 
-See [`specs/001-policy-loop-vertical-slice/quickstart.md`](../specs/001-policy-loop-vertical-slice/quickstart.md). T139 re-run measured 27.32s end-to-end on a warm stack against the SC-008 600s budget.
+See [`specs/001-policy-loop-vertical-slice/quickstart.md`](../specs/001-policy-loop-vertical-slice/quickstart.md). T139 re-run measured 27.32 s end-to-end on a warm stack against the SC-008 600 s budget.
 
 ## Run tests
 
@@ -72,39 +77,49 @@ ruff check && ruff format --check                            # T135 part 1
 mypy src/collectmind                                         # T135 part 2
 ```
 
-## What is next — Phase 7 (post-feature-001)
+## What is next — Phase 7 (post-feature-001) and feature 002
 
-Three named Phase 7 follow-ups inherited from Phase 6 closure:
+**Three named Phase 7 follow-ups inherited from Phase 6 closure**:
 
-| Item | Reason | Trigger |
+| Item | Reason | Gating condition |
 |---|---|---|
-| **ADR-0002 eval-suite baseline + promotion to Accepted** | Requires a GPU runner; the closure session ran on a workstation without `nvidia-smi`. Per instruction no baseline numbers fabricated. | First successful workflow_dispatch invocation of `.github/workflows/ci-workflow-dispatch.yaml` `eval-suite` job on a `[self-hosted, gpu]` runner. Lands as the follow-up commit `docs: ADR-0002 record eval baseline`. |
-| **SC-009 rolling-5-PR wall-clock window** | Needs at least one real PR-tier CI run as input; pre-emptive aggregator is speculative. | First PR-tier `ci.yaml` invocation. Lands as a small `scripts/ci_wall_clock_window.py` follow-up if SC-009 starts trending toward 18 min. |
-| **T142 PII-strip CI gate (closes SC-007)** | Excluded from Phase 6 per user's explicit instruction (`/speckit.implement T134-T141`). | Phase 7 work item; the test exists in skeleton via `src/collectmind/observability/logging.py`'s `_pii_processor`; the CI gate at `scripts/check_log_pii.py` lands in the same PR. |
+| **ADR-0002 eval-suite baseline + promotion to Accepted** | Closure session ran on a workstation without `nvidia-smi`; per Phase-6 instruction no baseline numbers fabricated. | First successful workflow_dispatch invocation of `.github/workflows/ci-workflow-dispatch.yaml` `eval-suite` job on a `[self-hosted, gpu]` runner. Lands as the follow-up commit `docs: ADR-0002 record eval baseline`. |
+| **SC-009 rolling-5-PR wall-clock window logic** | Needs at least one real PR-tier CI run as input; pre-emptive aggregator is speculative. | First PR-tier `ci.yaml` invocation. Lands as a small `scripts/ci_wall_clock_window.py` follow-up if SC-009 starts trending toward 18 min. |
+| **T142 PII-strip CI gate (closes SC-007)** | Excluded from Phase 6 per user's explicit `/speckit.implement T134-T141` instruction. The structlog `_pii_processor` exists at `src/collectmind/observability/logging.py`; the CI side at `scripts/check_log_pii.py` lands in the same Phase-7 PR. | Phase 7 work item. |
+
+**Next feature: `002-multi-tenant-isolation`**. Not yet started. When `/speckit-specify 002-multi-tenant-isolation` begins:
+
+1. Create `specs/002-multi-tenant-isolation/` with spec.md, plan.md, research.md, data-model.md, contracts/, quickstart.md, tasks.md, checklists/.
+2. Update the SPECKIT block in `CLAUDE.md` to point at the new directory.
+3. Re-target the `docs/TASKS.md` alias to `specs/002-multi-tenant-isolation/tasks.md`.
+4. Open a new phase table in this `PROJECT_STATE.md` keeping the feature-001 table as a closed historical record.
+
+Feature 002's scope per Phase 1's plan: tighten RLS from permissive to restrictive on every tenant-scoped table; add per-tenant rate limiting at ingress; tighten the Redis hot-store key shape from `vehicle_id:signal_name` to `tenant_id:vehicle_id:signal_name`; tighten the deployment client's tenant scoping. The composite finding key `(tenant_id, finding_id)` and the JWT `tenant_id` claim already exist from day one per Clarifications Q1.
 
 ## What is deferred (named gaps; not silent)
 
 | Item | Source | Reason |
 |---|---|---|
-| **Audit `UNIQUE (correlation_id, kind)` constraint + `ON CONFLICT DO NOTHING`** (Flag 9 from Phase 3 spot-check) | `src/collectmind/registry/audit.py` | Requires a migration + integration retest. Lands as a Phase 7-or-later migration ADR. |
-| **Dedicated `error JSONB` column on `audit_events`** to replace the `_extras` hack (Flag 10) | `src/collectmind/registry/audit.py`, migration `008_audit_events.sql` | Same Phase 7-or-later migration ADR as Flag 9. |
+| **Audit `UNIQUE (correlation_id, kind)` constraint + `ON CONFLICT DO NOTHING`** (Flag 9 from Phase 3 spot-check) | `src/collectmind/registry/audit.py` | Requires a migration + integration retest. Lands as a Phase-7-or-later migration ADR. |
+| **Dedicated `error JSONB` column on `audit_events`** to replace the `_extras` hack (Flag 10) | `src/collectmind/registry/audit.py`, migration `008_audit_events.sql` | Same Phase-7-or-later migration ADR as Flag 9. |
 | **Per-signal grouping in `BrakeWearHypothesisRule`** (MEDIUM flag from Phase 3 spot-check) | `src/collectmind/feedback/evaluator.py` | Not load-bearing for feature 001; the rule gets reworked in feature 004 / 005. |
 | **VLLMClient resource leak + missing OTel trace propagation on httpx** (MEDIUM flags) | `src/collectmind/slm/vllm_client.py` | Lands alongside the GPU-tier integration work in feature 005's full SLM gating. |
-| **ECS execution role does NOT have Secrets Manager read** (MEDIUM, Phase 5 spot-check) | `infra/terraform/secrets/main.tf` | Deliberate — least-privilege; the task role fetches secrets at runtime, not at task launch. |
-| **`outcome` audit row keyed by deployment_id, not by the inbound correlation_id** (observed during T139 quickstart) | `src/collectmind/feedback/worker.py` | By design — `deployment_targets` has no `correlation_id` column; the outcome audit is keyed by `deployment_id`. If a future feature wants the inbound correlation_id to chain through to outcome, add a column + migration. T060 already asserts the 4-kind chain without `outcome`. |
+| **ECS execution role does NOT have Secrets Manager read** (MEDIUM, Phase 5 spot-check) | `infra/terraform/secrets/main.tf` | Deliberate — least-privilege; the task role fetches secrets at runtime. |
+| **`outcome` audit row keyed by deployment_id, not by the inbound correlation_id** (observed during T139 quickstart) | `src/collectmind/feedback/worker.py` | By design — `deployment_targets` has no `correlation_id` column. T060 already asserts the 4-kind chain without `outcome`. If feature 002 wants outcome to chain through, add a column + migration. |
 
 ## Phase 6 spot-check findings (the four files the user named)
 
 | File | Verdict |
 |---|---|
-| [`docs/runbook/feature-001-readiness-review.md`](runbook/feature-001-readiness-review.md) | PASS — every NON-NEGOTIABLE walked with named artifact, not "the test passes." Three Phase-7 follow-ups documented. |
+| [`docs/runbook/feature-001-readiness-review.md`](runbook/feature-001-readiness-review.md) | PASS — every NON-NEGOTIABLE walked with named artifact, not "the test passes." |
 | [`docs/adr/0002-default-slm-qwen2-5-7b-instruct.md`](adr/0002-default-slm-qwen2-5-7b-instruct.md) | PASS — Status remains `Proposed` with a T137 gating note; baseline numbers NOT fabricated per instruction. |
-| Coverage report (`coverage.xml` after Phase 6) | PASS — 86.24% line coverage; Principle IV's 85% non-negotiable floor satisfied. |
-| [`specs/001-policy-loop-vertical-slice/quickstart.md`](../specs/001-policy-loop-vertical-slice/quickstart.md) after T139 re-run | PASS — 27.32s end-to-end on a warm Compose stack against the SC-008 600s budget. |
+| Coverage report (`coverage.xml` after Phase 6) | PASS — 86.24%, Principle IV's 85% non-negotiable floor satisfied. |
+| [`specs/001-policy-loop-vertical-slice/quickstart.md`](../specs/001-policy-loop-vertical-slice/quickstart.md) after T139 re-run | PASS — 27.32 s end-to-end on a warm Compose stack against the SC-008 600 s budget. |
 
-## Commit chain (feature 001)
+## Commit chain (feature 001 — closed)
 
 ```
+a49939e  docs: Phase 6 closure — feature 001 shipped
 990b437  feat(001): Phase 6 polish (T134-T141) — closure of feature 001
 237d122  docs: Phase 5 closure — tasks, project state, decisions, CLAUDE.md
 fe9eb41  feat(001): implement US3 (T116-T133) — CI/CD, IaC, load, threat model
