@@ -46,7 +46,6 @@ from tests.conftest import (
     require_local_stack,
 )
 
-
 pytestmark = pytest.mark.integration
 
 

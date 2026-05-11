@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 class LogicalTimeScheduler:
@@ -25,4 +25,4 @@ class LogicalTimeScheduler:
         return opened_at + timedelta(seconds=seconds)
 
     def now(self) -> datetime:
-        return datetime.now(tz=timezone.utc)
+        return datetime.now(tz=UTC)

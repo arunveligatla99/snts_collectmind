@@ -25,7 +25,6 @@ import re
 import sys
 from pathlib import Path
 
-
 _PATTERN = re.compile(r"\b(TODO|FIXME|XXX|@todo)\b", re.IGNORECASE)
 _INCLUDE_SUFFIXES = {".py", ".sql", ".yaml", ".yml", ".toml", ".sh", ".dockerfile", ".tf"}
 _EXCLUDE_PREFIXES = (

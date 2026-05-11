@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from collectmind.auth.jwt_verifier import JWTVerifier, Principal
 from collectmind.config import Settings, load_settings
 from collectmind.errors import AuthInvalidToken, CollectMindError
-
 
 _bearer = HTTPBearer(auto_error=False)
 

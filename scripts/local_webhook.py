@@ -28,9 +28,8 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-
 _BUFFER_SIZE = 1000
-_buffer: "deque[dict[str, Any]]" = deque(maxlen=_BUFFER_SIZE)
+_buffer: deque[dict[str, Any]] = deque(maxlen=_BUFFER_SIZE)
 _lock = threading.Lock()
 
 
@@ -45,7 +44,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         if self.path == "/healthz":
             self._write_json(HTTPStatus.OK, {"status": "ok"})
             return
@@ -56,7 +55,7 @@ class _Handler(BaseHTTPRequestHandler):
             return
         self._write_json(HTTPStatus.NOT_FOUND, {"error": "not_found", "path": self.path})
 
-    def do_DELETE(self) -> None:  # noqa: N802
+    def do_DELETE(self) -> None:
         if self.path == "/captured":
             with _lock:
                 snapshot = list(_buffer)
@@ -65,7 +64,7 @@ class _Handler(BaseHTTPRequestHandler):
             return
         self._write_json(HTTPStatus.NOT_FOUND, {"error": "not_found", "path": self.path})
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         if self.path != "/webhook":
             self._write_json(HTTPStatus.NOT_FOUND, {"error": "not_found", "path": self.path})
             return
@@ -80,7 +79,7 @@ class _Handler(BaseHTTPRequestHandler):
             _buffer.append(envelope)
         self._write_json(HTTPStatus.OK, {"received": 1})
 
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: Any) -> None:
         # Quiet by default; flip to True for verbose debugging.
         if os.environ.get("LOCAL_WEBHOOK_VERBOSE"):
             super().log_message(format, *args)

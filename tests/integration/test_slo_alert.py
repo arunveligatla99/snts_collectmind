@@ -34,7 +34,6 @@ import uuid
 import httpx
 import pytest
 
-
 pytestmark = pytest.mark.integration
 
 
@@ -111,10 +110,7 @@ def _wait_for_capture(alertname: str, deadline_seconds: float) -> dict:
                 if alert.get("labels", {}).get("alertname") == alertname:
                     return alert
         time.sleep(POLL_INTERVAL_SECONDS)
-    raise AssertionError(
-        f"webhook did not receive alert {alertname!r} within {deadline_seconds}s "
-        f"(US2 AS2 deadline)"
-    )
+    raise AssertionError(f"webhook did not receive alert {alertname!r} within {deadline_seconds}s (US2 AS2 deadline)")
 
 
 def test_slo_breach_alert_reaches_webhook_with_runbook_url() -> None:

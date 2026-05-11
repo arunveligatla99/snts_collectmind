@@ -5,8 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
-
+from pydantic import BaseModel, ConfigDict
 
 AuditKind = Literal["accepted", "rejected", "generated", "validated", "deployed", "outcome", "erasure"]
 

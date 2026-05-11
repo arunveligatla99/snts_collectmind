@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -12,7 +12,6 @@ import structlog
 from collectmind.models.erasure import ErasureRequest
 from collectmind.registry.audit import AuditEventWriter
 from collectmind.registry.db import Database
-
 
 logger = structlog.get_logger(__name__)
 
@@ -67,21 +66,21 @@ class ErasureDispatcher:
         try:
             await self._erase_registry(tenant_id, payload)
             per_store["registry"] = "erased" if payload.mode == "erased" else "redacted"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("erasure_registry_failed", error=str(exc), request_id=request_id)
             per_store["registry"] = "failed"
 
         try:
             await self._erase_telemetry(tenant_id, payload)
             per_store["telemetry"] = "erased"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("erasure_telemetry_failed", error=str(exc), request_id=request_id)
             per_store["telemetry"] = "failed"
 
         try:
             await self._redact_audit(tenant_id, payload)
             per_store["audit"] = "redacted"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("erasure_audit_failed", error=str(exc), request_id=request_id)
             per_store["audit"] = "failed"
 
@@ -95,7 +94,7 @@ class ErasureDispatcher:
                 """,
                 status,
                 json.dumps(per_store),
-                datetime.now(tz=timezone.utc),
+                datetime.now(tz=UTC),
                 request_id,
             )
 

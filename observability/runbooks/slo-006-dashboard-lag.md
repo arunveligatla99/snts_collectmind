@@ -31,3 +31,15 @@ Alert: `DashboardLagBreach`. Constitution Principle XI binding SLO. FR-015 is th
 
 - FR-015 — operator dashboard with at most 10s lag.
 - SC-006 — binding dashboard-lag SLO.
+
+## Measured steady-state (T136, 2026-05-11)
+
+| Metric | Value |
+|---|---|
+| Sample size | 5 publications |
+| Max ingest-to-Prometheus visibility | **2.11 s** |
+| Mean | 1.98 s |
+| SC-006 budget | 10 s |
+| Verdict | **PASS** (~5× headroom against the ceiling) |
+
+Methodology: snapshot the per-tenant counter, publish a finding through `POST /api/v1/findings`, poll the Prometheus instant-query API every 200 ms until the counter rises, record elapsed wall time. Repeated five times with a 2 s gap between runs. The 2 s steady-state floor matches the configured `scrape_interval` in `infra/compose/prometheus.yml` (T114 lowered this from 15 s to 2 s exactly so SC-006 is honored by construction).

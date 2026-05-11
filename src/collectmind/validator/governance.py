@@ -37,11 +37,11 @@ class DataGovernanceChecker:
 
     @classmethod
     @lru_cache(maxsize=1)
-    def from_default_config(cls) -> "DataGovernanceChecker":
+    def from_default_config(cls) -> DataGovernanceChecker:
         return cls.from_path(_DEFAULT_PATH)
 
     @classmethod
-    def from_path(cls, path: Path) -> "DataGovernanceChecker":
+    def from_path(cls, path: Path) -> DataGovernanceChecker:
         doc: dict[str, Any] = yaml.safe_load(path.read_text(encoding="utf-8"))
         categories = doc.get("categories", {})
         branches: list[str] = []

@@ -6,7 +6,7 @@ worker (T093) when a collection window closes.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -17,7 +17,7 @@ def _obs(value: float, signal: str = "Vehicle.Chassis.Brake.PadWear", dt_minutes
         "vehicle_id": "VIN-1",
         "signal_name": signal,
         "value": value,
-        "observed_at": datetime(2026, 5, 9, 14, dt_minutes, tzinfo=timezone.utc),
+        "observed_at": datetime(2026, 5, 9, 14, dt_minutes, tzinfo=UTC),
         "source": "simulator",
     }
 

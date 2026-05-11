@@ -12,7 +12,6 @@ from collectmind.models.policy import (
     TriggerSpec,
 )
 
-
 __all__ = [
     "AuditEvent",
     "CollectionPolicySpec",

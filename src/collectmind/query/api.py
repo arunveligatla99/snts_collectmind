@@ -11,7 +11,6 @@ from collectmind.auth.dependencies import authenticated_principal
 from collectmind.auth.jwt_verifier import Principal
 from collectmind.errors import NotFound
 
-
 router = APIRouter()
 
 
@@ -30,7 +29,9 @@ def _ensure_safe(kind: str, value: str) -> str:
 
 
 @router.get("/api/v1/policies/{policy_id}")
-async def get_policy(policy_id: str, request: Request, principal: Principal = Depends(authenticated_principal)) -> JSONResponse:
+async def get_policy(
+    policy_id: str, request: Request, principal: Principal = Depends(authenticated_principal)
+) -> JSONResponse:
     policy_id = _ensure_safe("policy", policy_id)
     repo = request.app.state.policy_repo
     found = await repo.get(principal.tenant_id, policy_id)

@@ -11,15 +11,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import httpx
 import jsonschema
 import pytest
 import yaml
 
-
-CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2] / "contracts" / "openapi" / "collector-ai-client.v1.yaml"
-)
+CONTRACT_PATH = Path(__file__).resolve().parents[2] / "contracts" / "openapi" / "collector-ai-client.v1.yaml"
 
 
 @pytest.fixture(scope="session")
@@ -68,9 +64,7 @@ def test_simulator_accepts_well_formed_request(collector_ai_url: str) -> None:
     )
     assert response.status in {"requested", "accepted"}
     body = json.loads(json.dumps(response.__dict__, default=str))
-    schema = _extract_schema(
-        yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8")), "DeployResponse"
-    )
+    schema = _extract_schema(yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8")), "DeployResponse")
     jsonschema.validate(instance=body, schema=schema)
 
 

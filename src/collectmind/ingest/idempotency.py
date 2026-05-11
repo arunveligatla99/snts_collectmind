@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-import asyncpg
-
 from collectmind.registry.db import Database
 
 
@@ -68,11 +66,11 @@ class IdempotencyChecker:
         self._backend = backend
 
     @classmethod
-    def in_memory(cls) -> "IdempotencyChecker":
+    def in_memory(cls) -> IdempotencyChecker:
         return cls(_InMemoryBackend())
 
     @classmethod
-    def from_db(cls, db: Database) -> "IdempotencyChecker":
+    def from_db(cls, db: Database) -> IdempotencyChecker:
         return cls(_PgBackend(db))
 
     async def check_or_record(self, tenant_id: str, finding_id: str, *, payload_sha: bytes) -> IdempotencyDecision:

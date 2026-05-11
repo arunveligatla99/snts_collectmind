@@ -11,9 +11,9 @@ import asyncio
 import os
 import re
 import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
@@ -58,8 +58,8 @@ from collectmind.slm.client import PolicyGeneratorClient
 from collectmind.slm.stub_client import FingerprintStubClient
 from collectmind.validator.policy_validator import PolicyValidator
 
-
 logger = get_logger(__name__)
+
 
 def _resolve_corpus_root() -> Path:
     env = os.environ.get("POLICY_CORPUS_ROOT")
@@ -182,7 +182,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         feedback_task.cancel()
         try:
             await feedback_task
-        except (asyncio.CancelledError, Exception):  # noqa: BLE001
+        except (asyncio.CancelledError, Exception):
             pass
         await kafka.stop()
         await redis.close()
@@ -230,7 +230,11 @@ class _MetricsMiddleware(BaseHTTPMiddleware):
     measurement vehicle for the p95<=200ms target.
     """
 
-    async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         start = time.monotonic()
         response = await call_next(request)
         elapsed = time.monotonic() - start

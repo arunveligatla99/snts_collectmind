@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 
-from aiokafka import AIOKafkaProducer
 import structlog
-
+from aiokafka import AIOKafkaProducer
 
 logger = structlog.get_logger(__name__)
 
@@ -35,7 +34,7 @@ class Producer:
 
     async def ping(self) -> bool:
         # aiokafka opens connections at first send; treat started state as ping.
-        return self._producer is not None and self._producer._sender._sender_task is not None  # noqa: SLF001
+        return self._producer is not None and self._producer._sender._sender_task is not None
 
     async def publish(
         self,

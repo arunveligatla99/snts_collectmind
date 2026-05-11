@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import ulid
@@ -92,7 +92,7 @@ class AuditEventWriter:
                 time_acceleration_factor,
                 principal_subject,
                 correlation_id,
-                datetime.now(tz=timezone.utc),
+                datetime.now(tz=UTC),
             )
         return event_id
 
@@ -126,7 +126,9 @@ def _row_to_event(row: Any) -> dict[str, Any]:
         "kind": d["kind"],
         "correlation_id": d["correlation_id"],
         "principal_subject": d["principal_subject"],
-        "occurred_at": d["occurred_at"].isoformat() if isinstance(d.get("occurred_at"), datetime) else d.get("occurred_at"),
+        "occurred_at": d["occurred_at"].isoformat()
+        if isinstance(d.get("occurred_at"), datetime)
+        else d.get("occurred_at"),
         "originating_finding": d.get("originating_finding"),
         "policy_ref": d.get("policy_ref"),
         "deployment_ref": d.get("deployment_ref"),
@@ -140,5 +142,7 @@ def _row_to_event(row: Any) -> dict[str, Any]:
         "slm_decoding_seed": int(d["slm_decoding_seed"]) if d.get("slm_decoding_seed") is not None else None,
         "prompt_template_version": d.get("prompt_template_version"),
         "inbound_schema_version": d.get("inbound_schema_version"),
-        "time_acceleration_factor": float(d["time_acceleration_factor"]) if d.get("time_acceleration_factor") is not None else None,
+        "time_acceleration_factor": float(d["time_acceleration_factor"])
+        if d.get("time_acceleration_factor") is not None
+        else None,
     }

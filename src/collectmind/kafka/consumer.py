@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
-from typing import Awaitable
+from collections.abc import Awaitable, Callable
 
-from aiokafka import AIOKafkaConsumer
 import structlog
-
+from aiokafka import AIOKafkaConsumer
 
 logger = structlog.get_logger(__name__)
 

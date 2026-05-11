@@ -16,12 +16,9 @@ import httpx
 import pytest
 import schemathesis
 
-from tests.conftest import QUERY_BASE_URL, MOCK_ISSUER_URL, DEFAULT_TENANT, DEFAULT_CLIENT_SECRET
+from tests.conftest import DEFAULT_CLIENT_SECRET, DEFAULT_TENANT, MOCK_ISSUER_URL, QUERY_BASE_URL
 
-
-CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2] / "contracts" / "openapi" / "query-api.v1.yaml"
-)
+CONTRACT_PATH = Path(__file__).resolve().parents[2] / "contracts" / "openapi" / "query-api.v1.yaml"
 
 
 def _mint_token() -> str:

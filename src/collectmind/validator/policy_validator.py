@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as dc_field
 from typing import Any
 
 from collectmind.models.policy import CollectionPolicySpec
@@ -15,20 +15,19 @@ class ValidationError:
     code: str
     field: str
     message: str
-    details: dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = dc_field(default_factory=dict)
 
 
 @dataclass
 class ValidationResult:
     ok: bool
-    errors: list[ValidationError] = field(default_factory=list)
-    suggestions: dict[str, str] = field(default_factory=dict)
+    errors: list[ValidationError] = dc_field(default_factory=list)
+    suggestions: dict[str, str] = dc_field(default_factory=dict)
 
     def to_retry_context(self) -> dict[str, Any]:
         return {
             "validation_errors": [
-                {"code": e.code, "field": e.field, "message": e.message, "details": e.details}
-                for e in self.errors
+                {"code": e.code, "field": e.field, "message": e.message, "details": e.details} for e in self.errors
             ],
             "suggestions": dict(self.suggestions),
         }

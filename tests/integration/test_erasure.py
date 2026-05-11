@@ -22,9 +22,7 @@ from tests.conftest import (
     ORCHESTRATION_BASE_URL,
     QUERY_BASE_URL,
     require_local_stack,
-    require_slm,
 )
-
 
 pytestmark = pytest.mark.integration
 
@@ -158,9 +156,7 @@ def test_erasure_request_itself_audited() -> None:
             headers=headers,
             timeout=10.0,
         )
-        if audit.status_code == 200 and any(
-            e["kind"] == "erasure" for e in audit.json()
-        ):
+        if audit.status_code == 200 and any(e["kind"] == "erasure" for e in audit.json()):
             return
         time.sleep(1.0)
     raise AssertionError("did not observe a `kind=erasure` audit event")

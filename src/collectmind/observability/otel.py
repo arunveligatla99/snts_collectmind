@@ -10,7 +10,6 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-
 _initialized = False
 
 
@@ -24,9 +23,7 @@ def init_otel(service_name: str, otlp_endpoint: str) -> None:
         return
     resource = Resource.create({SERVICE_NAME: service_name})
     provider = TracerProvider(resource=resource)
-    provider.add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True))
-    )
+    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)))
     trace.set_tracer_provider(provider)
     _initialized = True
 

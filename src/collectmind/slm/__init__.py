@@ -3,7 +3,6 @@
 from collectmind.slm.client import GenerationRequest, GenerationResponse, PolicyGeneratorClient, RuntimeInfo
 from collectmind.slm.stub_client import FingerprintStubClient, MissingFingerprint
 
-
 __all__ = [
     "FingerprintStubClient",
     "GenerationRequest",

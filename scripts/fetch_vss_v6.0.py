@@ -23,12 +23,9 @@ from typing import Any
 
 import yaml
 
-
 VSS_TAG = "v6.0"
 VSS_COMMIT_SHA = "20c609bf95c73b51d483fb8f81a099d1d5b73066"
-VSS_RELEASE_BASE = (
-    "https://github.com/COVESA/vehicle_signal_specification/releases/download/v6.0"
-)
+VSS_RELEASE_BASE = "https://github.com/COVESA/vehicle_signal_specification/releases/download/v6.0"
 ASSETS = (
     "vss.json",
     "vss.csv",

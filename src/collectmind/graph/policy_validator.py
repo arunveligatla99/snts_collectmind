@@ -16,7 +16,7 @@ class PolicyValidatorNode:
             raise RuntimeError("validator invoked before generator produced a policy")
         try:
             spec = CollectionPolicySpec.model_validate(session.generated_policy)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             session.validation_errors = [
                 {
                     "code": "SCHEMA_VALIDATION_FAILED",
@@ -29,8 +29,7 @@ class PolicyValidatorNode:
         result = self._validator.validate(spec)
         if not result.ok:
             session.validation_errors = [
-                {"code": e.code, "field": e.field, "message": e.message, "details": e.details}
-                for e in result.errors
+                {"code": e.code, "field": e.field, "message": e.message, "details": e.details} for e in result.errors
             ]
         else:
             session.validation_errors = []

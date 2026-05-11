@@ -10,7 +10,8 @@ imports fail. That is the test's red phase per Principle IV.
 from __future__ import annotations
 
 import pytest
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 
 @pytest.fixture(scope="module")
@@ -49,9 +50,7 @@ def test_unknown_signal_no_suggestion_far(validator) -> None:
 
 
 def test_pii_signal_requires_consent(governance) -> None:
-    decision = governance.evaluate_signals(
-        ["Vehicle.CurrentLocation.Latitude"], consent=False
-    )
+    decision = governance.evaluate_signals(["Vehicle.CurrentLocation.Latitude"], consent=False)
     assert decision.ok is False
     assert decision.code == "PII_CONSENT_REQUIRED"
     # flagged_signals contains the literal selected leaf names that match a PII branch.
@@ -59,9 +58,7 @@ def test_pii_signal_requires_consent(governance) -> None:
 
 
 def test_pii_signal_with_consent_passes(governance) -> None:
-    decision = governance.evaluate_signals(
-        ["Vehicle.CurrentLocation.Latitude"], consent=True
-    )
+    decision = governance.evaluate_signals(["Vehicle.CurrentLocation.Latitude"], consent=True)
     assert decision.ok is True
 
 

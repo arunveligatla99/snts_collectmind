@@ -21,7 +21,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import FastAPI, Form, HTTPException
 from fastapi.responses import JSONResponse
 
-
 CONFIG_PATH = Path("/app/issuer-config.yaml")
 TOKEN_TTL_SECONDS = 3600
 

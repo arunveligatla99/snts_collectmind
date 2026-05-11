@@ -4,25 +4,33 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
-
 
 _METRIC_REF = re.compile(r"\b[a-z][a-z0-9_]*\b")
+_SUFFIXES: tuple[str, ...] = ("", "_total", "_created", "_bucket", "_sum", "_count")
 
 
 def declared_metric_names() -> set[str]:
-    """Best-effort import of the names registered in collectmind.observability.metrics."""
+    """Return every Prometheus series name declared by ``metrics.py``.
+
+    `prometheus_client.Counter` strips the user-supplied ``_total`` suffix
+    from the instance's ``_name`` attribute but exposes the series with the
+    suffix. Histograms expose ``_bucket``, ``_sum``, and ``_count`` derived
+    series. The declared set must include every derived suffix so a
+    bidirectional dashboard-to-metrics check produces no false negatives.
+    """
     from collectmind.observability import metrics
 
     names: set[str] = set()
     for attr_name in dir(metrics):
         attr = getattr(metrics, attr_name)
-        for prom_name_attr in ("_name", "_total"):
-            value = getattr(attr, prom_name_attr, None)
-            if isinstance(value, str):
-                names.add(value)
-    return {n for n in names if n}
+        prom_name = getattr(attr, "_name", None)
+        if not isinstance(prom_name, str) or not prom_name.startswith("collectmind_"):
+            continue
+        for suffix in _SUFFIXES:
+            names.add(f"{prom_name}{suffix}")
+    return names
 
 
 def referenced_metric_names(panel_targets: Iterable[dict[str, object]]) -> set[str]:

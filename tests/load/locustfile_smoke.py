@@ -31,7 +31,6 @@ from locust import HttpUser, between, events, task
 
 from tests.load._common import finding_payload, mint_token
 
-
 logger = logging.getLogger(__name__)
 
 SMOKE_P50_CEILING_MS = int(os.environ.get("SMOKE_P50_CEILING_MS", "4000"))  # SC-001 p50

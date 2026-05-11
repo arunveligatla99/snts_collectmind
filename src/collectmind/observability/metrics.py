@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 
-
 REGISTRY_NAMESPACE = "collectmind"
 
 

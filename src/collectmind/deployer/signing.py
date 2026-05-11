@@ -34,12 +34,12 @@ class LocalKeySigner:
         self._key_id = key_id
 
     @classmethod
-    def generate_for_tests(cls, key_id: str = "dev-key-1") -> "LocalKeySigner":
+    def generate_for_tests(cls, key_id: str = "dev-key-1") -> LocalKeySigner:
         sk = Ed25519PrivateKey.generate()
         return cls(private_key=sk, public_key=sk.public_key(), key_id=key_id)
 
     @classmethod
-    def from_path(cls, path: Path, key_id: str) -> "LocalKeySigner":
+    def from_path(cls, path: Path, key_id: str) -> LocalKeySigner:
         if path.exists():
             sk = serialization.load_pem_private_key(path.read_bytes(), password=None)
         else:

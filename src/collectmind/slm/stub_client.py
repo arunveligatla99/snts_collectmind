@@ -76,9 +76,7 @@ class FingerprintStubClient:
             raise MissingFingerprint(fingerprint, self._corpus_root, body)
         policy = json.loads((target / "output.json").read_text(encoding="utf-8"))
         usage_path = target / "usage.json"
-        usage: dict[str, Any] = (
-            json.loads(usage_path.read_text(encoding="utf-8")) if usage_path.exists() else {}
-        )
+        usage: dict[str, Any] = json.loads(usage_path.read_text(encoding="utf-8")) if usage_path.exists() else {}
         return GenerationResponse(
             policy=policy,
             runtime_info=_RUNTIME_INFO.to_dict(),

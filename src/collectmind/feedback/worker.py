@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import ulid
@@ -16,7 +16,6 @@ from collectmind.observability.metrics import policy_outcome_total, policy_outco
 from collectmind.registry.audit import AuditEventWriter
 from collectmind.registry.db import Database
 from collectmind.registry.repository import DeploymentRepository, OutcomeRepository, PolicyRepository
-
 
 logger = get_logger(__name__)
 
@@ -50,7 +49,7 @@ class FeedbackWorker:
         while not self._stopped:
             try:
                 await self.tick()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error("feedback_tick_error", error=str(exc))
             await asyncio.sleep(self._poll_interval)
 
@@ -86,7 +85,7 @@ class FeedbackWorker:
             "policy_id": policy_id,
             "version": version,
             "hypothesis_state": outcome.hypothesis_state,
-            "evaluated_at": datetime.now(tz=timezone.utc),
+            "evaluated_at": datetime.now(tz=UTC),
             "signals_collected_count": outcome.signals_collected_count,
             "data_quality_score": outcome.data_quality_score,
             "evidence_summary": outcome.evidence_summary,
@@ -98,7 +97,7 @@ class FeedbackWorker:
         # SC-010: wall-clock delta from collection-window close to outcome row written.
         expires_at = deployment.get("expires_at")
         if isinstance(expires_at, datetime):
-            delay = (datetime.now(tz=timezone.utc) - expires_at).total_seconds()
+            delay = (datetime.now(tz=UTC) - expires_at).total_seconds()
             if delay >= 0:
                 policy_outcome_write_delay_seconds.labels(tenant_id=tenant_id).observe(delay)
 

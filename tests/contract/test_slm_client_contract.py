@@ -22,9 +22,6 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import require_slm
-
-
 CORPUS_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "policy_corpus"
 WARM_PATH_BUDGET_SECONDS = 60.0
 
@@ -37,7 +34,7 @@ def _slm_available() -> bool:
 
         httpx.get(f"{SLM_BASE_URL}/info", timeout=2.0)
         return True
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 

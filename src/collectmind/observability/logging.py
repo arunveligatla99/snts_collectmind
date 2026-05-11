@@ -31,7 +31,7 @@ def _strip_pii(value: Any) -> Any:
     return value
 
 
-def _pii_processor(_: Any, __: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+def _pii_processor(_: Any, __: str, event_dict: Any) -> Any:
     """structlog processor that strips PII patterns from every string value."""
     for k, v in list(event_dict.items()):
         if isinstance(v, str):

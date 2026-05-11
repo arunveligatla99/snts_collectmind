@@ -18,12 +18,9 @@ import httpx
 import pytest
 import schemathesis
 
-from tests.conftest import ORCHESTRATION_BASE_URL, MOCK_ISSUER_URL, DEFAULT_TENANT, DEFAULT_CLIENT_SECRET
+from tests.conftest import DEFAULT_CLIENT_SECRET, DEFAULT_TENANT, MOCK_ISSUER_URL, ORCHESTRATION_BASE_URL
 
-
-CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2] / "contracts" / "openapi" / "orchestration-api.v1.yaml"
-)
+CONTRACT_PATH = Path(__file__).resolve().parents[2] / "contracts" / "openapi" / "orchestration-api.v1.yaml"
 
 
 def _mint_token() -> str:

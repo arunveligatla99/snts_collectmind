@@ -10,7 +10,6 @@ import httpx
 
 from collectmind.slm.client import GenerationRequest, GenerationResponse, RuntimeInfo
 
-
 _REPO = "Qwen/Qwen2.5-7B-Instruct"
 _REVISION_SHA = "a09a35458c702b33eeacc393d103063234e8bc28"
 
@@ -37,7 +36,7 @@ class LlamaCppClient:
         )
 
     @classmethod
-    def from_env(cls) -> "LlamaCppClient":
+    def from_env(cls) -> LlamaCppClient:
         return cls(base_url=os.environ.get("SLM_BASE_URL", "http://slm-inference:8000"))
 
     def warmup(self) -> None:

@@ -28,9 +28,7 @@ from tests.conftest import (
     ORCHESTRATION_BASE_URL,
     QUERY_BASE_URL,
     require_local_stack,
-    require_slm,
 )
-
 
 pytestmark = pytest.mark.integration
 

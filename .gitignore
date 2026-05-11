@@ -17,6 +17,15 @@ htmlcov/
 .tox/
 coverage.xml
 
+# Hypothesis property-test database (local cache, not source)
+.hypothesis/
+
+# Spec-kit local extensions / per-machine workflow config (not source)
+.specify/extensions/
+.specify/workflows/
+.specify/feature.json
+.specify/init-options.json
+
 # Virtual environments
 .venv/
 venv/

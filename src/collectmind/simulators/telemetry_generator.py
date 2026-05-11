@@ -8,13 +8,12 @@ whether the synthetic stream confirms, rules out, or starves the hypothesis.
 from __future__ import annotations
 
 import random
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
 
 from collectmind.registry.db import Database
-
 
 logger = structlog.get_logger(__name__)
 
@@ -39,13 +38,15 @@ class TelemetryGenerator:
         threshold = float(policy.get("confidence_threshold", 0.5))
         # Choose a value distribution aligned with the directive.
         if directive == "rule_out":
-            generator = lambda: max(0.0, threshold - self._random.uniform(0.2, 0.5))  # noqa: E731
+            def generator() -> float:
+                return max(0.0, threshold - self._random.uniform(0.2, 0.5))
         else:
             # Default and "confirm" directives both produce above-threshold values.
-            generator = lambda: min(1.0, threshold + self._random.uniform(0.05, 0.3))  # noqa: E731
+            def generator() -> float:
+                return min(1.0, threshold + self._random.uniform(0.05, 0.3))
 
         rows: list[tuple[str, str, str, float, datetime, dict[str, Any], str]] = []
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         for i in range(20):
             ts = now + timedelta(seconds=i)
             for vehicle in scope:

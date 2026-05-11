@@ -15,7 +15,6 @@ from dataclasses import dataclass
 import httpx
 import pytest
 
-
 ORCHESTRATION_BASE_URL = os.environ.get("ORCHESTRATION_BASE_URL", "http://localhost:8081")
 QUERY_BASE_URL = os.environ.get("QUERY_BASE_URL", "http://localhost:8081")
 MOCK_ISSUER_URL = os.environ.get("MOCK_ISSUER_URL", "http://localhost:8088")

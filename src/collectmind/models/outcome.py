@@ -7,7 +7,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 HypothesisState = Literal["confirmed", "ruled_out", "no_data"]
 
 

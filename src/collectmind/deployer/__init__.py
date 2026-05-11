@@ -5,7 +5,6 @@ from collectmind.deployer.real_stub import RealCollectorAIClient
 from collectmind.deployer.signing import LocalKeySigner
 from collectmind.deployer.simulator import SimulatorCollectorAIClient
 
-
 __all__ = [
     "CollectorAIClient",
     "DeployResponse",

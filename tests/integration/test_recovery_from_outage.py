@@ -51,7 +51,6 @@ from tests.conftest import (
     require_local_stack,
 )
 
-
 pytestmark = pytest.mark.integration
 
 
@@ -159,9 +158,7 @@ def test_one_minute_dependency_outage_drains_within_five_minutes_no_loss() -> No
     finally:
         # 4. Restart the dependency.
         start = _compose("start", DEPENDENCY_SERVICE)
-        assert start.returncode == 0, (
-            f"failed to restart {DEPENDENCY_SERVICE}: stderr: {start.stderr.strip()}"
-        )
+        assert start.returncode == 0, f"failed to restart {DEPENDENCY_SERVICE}: stderr: {start.stderr.strip()}"
 
     recovery_started_at = time.monotonic()
 

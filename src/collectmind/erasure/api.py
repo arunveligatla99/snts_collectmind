@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import ulid
 from fastapi import APIRouter, Depends, Request
@@ -11,7 +11,6 @@ from fastapi.responses import JSONResponse
 from collectmind.auth.dependencies import authenticated_principal
 from collectmind.auth.jwt_verifier import Principal
 from collectmind.models.erasure import ErasureRequest
-
 
 _DEFAULT_BOUND_DAYS = 30
 
@@ -26,7 +25,7 @@ async def submit_erasure_request(
     principal: Principal = Depends(authenticated_principal),
 ) -> JSONResponse:
     request_id = str(ulid.new())
-    requested_at = datetime.now(tz=timezone.utc)
+    requested_at = datetime.now(tz=UTC)
     target = requested_at + timedelta(days=_DEFAULT_BOUND_DAYS)
     dispatcher = request.app.state.erasure_dispatcher
     await dispatcher.submit(

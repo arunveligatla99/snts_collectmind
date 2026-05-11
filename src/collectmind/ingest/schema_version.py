@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-
 _SEMVER = re.compile(r"^([0-9]+)\.([0-9]+)\.([0-9]+)$")
 
 

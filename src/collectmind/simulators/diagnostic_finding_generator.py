@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class DiagnosticFindingGenerator:
@@ -30,5 +30,5 @@ class DiagnosticFindingGenerator:
             ],
             "vehicle_scope": [f"VIN-sim-{i:03d}" for i in range(vehicle_count)],
             "upstream_confidence": round(confidence, 3),
-            "_simulator_emitted_at": datetime.now(tz=timezone.utc).isoformat(),
+            "_simulator_emitted_at": datetime.now(tz=UTC).isoformat(),
         }

@@ -7,7 +7,6 @@ from typing import Literal
 from collectmind.graph.session import PolicyGenerationSession
 from collectmind.observability.metrics import policy_retry_total
 
-
 RouteDecision = Literal["generate", "validate", "deploy", "retry", "dead_letter", "done"]
 
 

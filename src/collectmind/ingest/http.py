@@ -6,7 +6,7 @@ import asyncio
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -17,16 +17,14 @@ from pydantic import ValidationError
 
 from collectmind.auth.dependencies import authenticated_principal
 from collectmind.auth.jwt_verifier import Principal
-from collectmind.errors import AuthInvalidToken, SchemaValidationFailed, SchemaVersionUnsupported
+from collectmind.errors import SchemaValidationFailed, SchemaVersionUnsupported
 from collectmind.graph.session import PolicyGenerationSession
 from collectmind.ingest.idempotency import IdempotencyChecker
 from collectmind.ingest.schema_version import SchemaVersionChecker
 from collectmind.models.finding import DiagnosticFinding
 from collectmind.observability.metrics import (
-    authentication_failure_total,
     diagnostic_findings_received_total,
 )
-
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -58,14 +56,14 @@ async def post_finding(
         first = exc.errors()[0] if exc.errors() else {"loc": ["unknown"], "msg": "invalid"}
         raise SchemaValidationFailed(
             field=".".join(str(p) for p in first.get("loc", ["unknown"])),
-            message=first.get("msg", "validation error"),
+            message=str(first.get("msg", "validation error")),
         )
 
     payload_canonical = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
     payload_sha = hashlib.sha256(payload_canonical).digest()
 
     correlation_id = request.headers.get("x-correlation-id") or str(uuid.uuid4())
-    accepted_at = datetime.now(tz=timezone.utc)
+    accepted_at = datetime.now(tz=UTC)
 
     idempotency: IdempotencyChecker = request.app.state.idempotency
     decision = await idempotency.check_or_record(principal.tenant_id, finding.finding_id, payload_sha=payload_sha)
@@ -176,7 +174,7 @@ async def _enqueue(
             "vehicle_scope": list(finding.vehicle_scope),
             "upstream_confidence": float(finding.upstream_confidence),
         },
-        started_at=datetime.now(tz=timezone.utc),
+        started_at=datetime.now(tz=UTC),
     )
     runner = request.app.state.graph_runner
     asyncio.create_task(runner.run_async(session, sim_directive=sim_directive, accel_header=accel_header))

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import ulid
 
@@ -24,7 +24,7 @@ class SimulatorCollectorAIClient:
         self._inflight: dict[str, DeployResponse] = {}
 
     @classmethod
-    def from_env(cls) -> "SimulatorCollectorAIClient":
+    def from_env(cls) -> SimulatorCollectorAIClient:
         rate = float(os.environ.get("COLLECTOR_AI_FAIL_RATE", "0.0"))
         return cls(inject_failure_rate=rate)
 
@@ -51,9 +51,10 @@ class SimulatorCollectorAIClient:
                 status=self._failure_status,
                 downstream_response={"reason": "injected failure"},
             )
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         # Logical-time expiry: collection_window_hours from the payload, default 24h.
-        window_hours = int(payload.get("collection_window_hours", 24)) if isinstance(payload, dict) else 24
+        window_value: object = payload.get("collection_window_hours", 24) if isinstance(payload, dict) else 24
+        window_hours = int(window_value) if isinstance(window_value, (int, float, str)) else 24
         accel = float(os.environ.get("TIME_ACCELERATION_FACTOR", "1.0") or 1.0) or 1.0
         expires = now + timedelta(seconds=(window_hours * 3600) / accel)
         deployment_id = str(ulid.new())

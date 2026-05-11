@@ -4,7 +4,6 @@ policy-deployments, and policy-outcomes (4 topics) using the harness from T043.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import jsonschema
@@ -12,7 +11,6 @@ import pytest
 import yaml
 
 from tests.contract.asyncapi_harness import load_message_schema, validate_message
-
 
 CONTRACTS_DIR = Path(__file__).resolve().parents[2] / "contracts" / "asyncapi"
 

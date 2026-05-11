@@ -7,7 +7,6 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-
 NonEmpty = Annotated[str, StringConstraints(min_length=1)]
 
 

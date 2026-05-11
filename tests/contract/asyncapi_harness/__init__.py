@@ -13,7 +13,6 @@ from typing import Any
 import jsonschema
 import yaml
 
-
 CONTRACTS_DIR = Path(__file__).resolve().parents[3] / "contracts" / "asyncapi"
 
 

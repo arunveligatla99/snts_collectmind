@@ -30,7 +30,6 @@ import re
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WEIGHT_MANIFEST = REPO_ROOT / "config" / "slm" / "qwen2.5-7b-instruct" / "manifest.sha256"
 GPU_DOCKERFILE = REPO_ROOT / "infra" / "compose" / "gpu-profile" / "Dockerfile.vllm"

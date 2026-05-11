@@ -28,7 +28,6 @@ import uuid
 
 import httpx
 
-
 ORCHESTRATION_BASE_URL = os.environ.get("ORCHESTRATION_BASE_URL", "http://localhost:8081")
 MOCK_ISSUER_URL = os.environ.get("MOCK_ISSUER_URL", "http://localhost:8088")
 DEFAULT_TENANT = os.environ.get("LOAD_TENANT_ID", "feature-001-default")

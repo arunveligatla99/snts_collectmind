@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
-from typing import Annotated
-
 
 SubjectKind = Literal["vehicle", "finding", "principal"]
 ErasureMode = Literal["erased", "redacted"]

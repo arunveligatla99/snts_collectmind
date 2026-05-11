@@ -21,9 +21,7 @@ from tests.conftest import (
     ORCHESTRATION_BASE_URL,
     QUERY_BASE_URL,
     require_local_stack,
-    require_slm,
 )
-
 
 pytestmark = pytest.mark.integration
 
@@ -83,9 +81,7 @@ def test_vss_invalid_signal_in_finding_rejected_with_structured_error() -> None:
                 headers=headers,
                 timeout=10.0,
             )
-            if audit.status_code == 200 and any(
-                e["kind"] == "rejected" for e in audit.json()
-            ):
+            if audit.status_code == 200 and any(e["kind"] == "rejected" for e in audit.json()):
                 rejected = next(e for e in audit.json() if e["kind"] == "rejected")
                 # The structured error must name every invalid signal.
                 details = rejected.get("error", {}).get("details", {})

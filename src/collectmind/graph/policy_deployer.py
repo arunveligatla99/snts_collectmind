@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import ulid
@@ -36,7 +36,7 @@ class PolicyDeployer:
             "version": policy.get("version", "1.0.0"),
             "vehicle_scope": list(policy.get("vehicle_scope", [])),
             "status": response.status,
-            "deployed_at": datetime.now(tz=timezone.utc).isoformat(),
+            "deployed_at": datetime.now(tz=UTC).isoformat(),
             "expires_at": response.expires_at,
             "downstream_response": response.downstream_response,
         }

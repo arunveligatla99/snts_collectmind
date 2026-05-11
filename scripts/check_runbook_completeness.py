@@ -26,11 +26,10 @@ from __future__ import annotations
 
 import re
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import yaml
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RULES_PATH = REPO_ROOT / "observability" / "prometheus" / "rules.yaml"
@@ -82,21 +81,17 @@ def check() -> list[str]:
         target = _resolve_runbook_target(runbook_url)
         if not target.is_file():
             errors.append(
-                f"{group_name}.{alert_name}: runbook_url {runbook_url!r} resolves to "
-                f"{target} which is missing"
+                f"{group_name}.{alert_name}: runbook_url {runbook_url!r} resolves to {target} which is missing"
             )
             continue
         body = target.read_text(encoding="utf-8")
-        missing = [
-            s for s in REQUIRED_SECTIONS
-            if not re.search(rf"(?m)^#+\s*{re.escape(s)}\b", body)
-        ]
+        missing = [s for s in REQUIRED_SECTIONS if not re.search(rf"(?m)^#+\s*{re.escape(s)}\b", body)]
         if missing:
             errors.append(f"{target.name}: missing required section(s) {missing}")
     return errors
 
 
-def main(argv: list[str] | None = None) -> int:  # noqa: ARG001
+def main(argv: list[str] | None = None) -> int:
     errors = check()
     if errors:
         print("Runbook completeness check FAILED:", file=sys.stderr)

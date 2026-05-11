@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import asyncpg
@@ -52,7 +52,7 @@ class PolicyRepository:
                 int(audit_meta["slm_decoding_seed"]),
                 audit_meta["payload_signature"],
                 audit_meta["signature_key_id"],
-                datetime.now(tz=timezone.utc),
+                datetime.now(tz=UTC),
             )
 
     async def get(self, tenant_id: str, policy_id: str, version: str | None = None) -> dict[str, Any] | None:
@@ -152,7 +152,7 @@ class DeploymentRepository:
                 json.dumps(record["vehicle_scope"]),
                 record["status"],
                 json.dumps(record.get("downstream_response", {})),
-                datetime.now(tz=timezone.utc),
+                datetime.now(tz=UTC),
                 _parse_iso(record.get("deployed_at")),
                 _parse_iso(record.get("expires_at")),
             )
@@ -273,7 +273,9 @@ def _row_to_outcome(row: asyncpg.Record) -> dict[str, Any]:
             "version": d["version"],
         },
         "hypothesis_state": d["hypothesis_state"],
-        "evaluated_at": d["evaluated_at"].isoformat() if isinstance(d.get("evaluated_at"), datetime) else d.get("evaluated_at"),
+        "evaluated_at": d["evaluated_at"].isoformat()
+        if isinstance(d.get("evaluated_at"), datetime)
+        else d.get("evaluated_at"),
         "signals_collected_count": int(d.get("signals_collected_count", 0)),
         "data_quality_score": float(d.get("data_quality_score", 0.0)),
         "evidence_summary": d["evidence_summary"],

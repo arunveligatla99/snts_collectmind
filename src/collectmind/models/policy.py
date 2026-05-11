@@ -7,7 +7,6 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
-
 SemverStr = Annotated[str, StringConstraints(pattern=r"^\d+\.\d+\.\d+$", min_length=5)]
 NonEmptyStr = Annotated[str, StringConstraints(min_length=1)]
 Sha40 = Annotated[str, StringConstraints(min_length=40, max_length=40, pattern=r"^[0-9a-f]{40}$")]
@@ -38,7 +37,7 @@ class DataGovernanceFlags(BaseModel):
     has_pii_signal: bool
 
     @model_validator(mode="after")
-    def _consent_required_when_pii(self) -> "DataGovernanceFlags":
+    def _consent_required_when_pii(self) -> DataGovernanceFlags:
         if self.has_pii_signal and not self.pii_consent:
             raise ValueError("pii_consent is required when has_pii_signal is true")
         return self

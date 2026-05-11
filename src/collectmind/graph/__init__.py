@@ -2,5 +2,4 @@
 
 from collectmind.graph.session import PolicyGenerationSession
 
-
 __all__ = ["PolicyGenerationSession"]

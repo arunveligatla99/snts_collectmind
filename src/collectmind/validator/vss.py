@@ -41,11 +41,11 @@ class VSSValidator:
 
     @classmethod
     @lru_cache(maxsize=1)
-    def from_default_config(cls) -> "VSSValidator":
+    def from_default_config(cls) -> VSSValidator:
         return cls.from_path(_DEFAULT_PATH)
 
     @classmethod
-    def from_path(cls, path: Path) -> "VSSValidator":
+    def from_path(cls, path: Path) -> VSSValidator:
         doc = yaml.safe_load(path.read_text(encoding="utf-8"))
         signals = doc.get("signals", {}) if isinstance(doc, dict) else {}
         return cls(signals=signals)

@@ -4,7 +4,6 @@ from collectmind.feedback.evaluator import BrakeWearHypothesisRule, HypothesisOu
 from collectmind.feedback.scheduler import LogicalTimeScheduler
 from collectmind.feedback.worker import FeedbackWorker
 
-
 __all__ = [
     "BrakeWearHypothesisRule",
     "FeedbackWorker",

@@ -43,7 +43,6 @@ from collectmind.errors import (
     DependencyUnavailable,
 )
 
-
 logger = structlog.get_logger(__name__)
 
 _OIDC_DISCOVERY_PATH = "/.well-known/openid-configuration"

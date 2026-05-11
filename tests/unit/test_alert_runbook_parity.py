@@ -34,9 +34,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
 import yaml
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RULES_PATH = REPO_ROOT / "observability" / "prometheus" / "rules.yaml"
@@ -57,9 +55,7 @@ REQUIRED_SLO_TAGS: tuple[str, ...] = (
 
 
 def _load_rules() -> dict:
-    assert RULES_PATH.is_file(), (
-        f"alert rules YAML missing at {RULES_PATH} — T111 must author it before T106 passes"
-    )
+    assert RULES_PATH.is_file(), f"alert rules YAML missing at {RULES_PATH} — T111 must author it before T106 passes"
     return yaml.safe_load(RULES_PATH.read_text(encoding="utf-8")) or {}
 
 
@@ -99,7 +95,7 @@ def _resolve_runbook_target(runbook_url: str) -> Path:
 
 def test_rules_yaml_loads() -> None:
     doc = _load_rules()
-    assert "groups" in doc and doc["groups"], "rules.yaml must declare at least one group"
+    assert doc.get("groups"), "rules.yaml must declare at least one group"
 
 
 def test_every_alert_declares_required_annotations() -> None:
@@ -122,9 +118,7 @@ def test_every_alert_runbook_resolves_to_existing_page() -> None:
             continue  # covered by the annotations test above
         target = _resolve_runbook_target(url)
         if not target.is_file():
-            misses.append(
-                f"{group_name}.{alert_name}: runbook_url {url!r} resolves to {target} which is missing"
-            )
+            misses.append(f"{group_name}.{alert_name}: runbook_url {url!r} resolves to {target} which is missing")
     assert not misses, "runbook pages missing for alert(s):\n  - " + "\n  - ".join(misses)
 
 

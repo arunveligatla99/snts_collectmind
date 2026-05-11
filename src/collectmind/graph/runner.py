@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
 
-from collectmind.deployer.signing import LocalKeySigner, canonical_payload
+from collectmind.deployer.signing import LocalKeySigner
 from collectmind.feedback.scheduler import LogicalTimeScheduler
 from collectmind.graph.build import CollectMindGraph
 from collectmind.graph.session import PolicyGenerationSession
@@ -24,7 +23,6 @@ from collectmind.observability.metrics import (
 from collectmind.registry.audit import AuditEventWriter
 from collectmind.registry.repository import DeploymentRepository, PolicyRepository
 from collectmind.simulators.telemetry_generator import TelemetryGenerator
-
 
 logger = structlog.get_logger(__name__)
 
@@ -57,7 +55,7 @@ class GraphRunner:
     ) -> None:
         try:
             await self._run(session, sim_directive=sim_directive, accel_header=accel_header)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("graph_runner_error", error=str(exc), correlation_id=session.correlation_id)
             await self._audit_writer.write(
                 tenant_id=session.tenant_id,
@@ -75,7 +73,7 @@ class GraphRunner:
         sim_directive: str | None,
         accel_header: str | None,
     ) -> None:
-        start = datetime.now(tz=timezone.utc)
+        start = datetime.now(tz=UTC)
         loop = asyncio.get_running_loop()
         run = await loop.run_in_executor(None, self._graph.run, session)
         session = run.session
@@ -152,8 +150,8 @@ class GraphRunner:
             originating_finding=_finding_ref(session),
             policy_ref={
                 "tenant_id": session.tenant_id,
-                "policy_id": session.generated_policy["policy_id"],
-                "version": session.generated_policy["version"],
+                "policy_id": _policy_field(session.generated_policy, "policy_id"),
+                "version": _policy_field(session.generated_policy, "version"),
             },
         )
 
@@ -169,13 +167,13 @@ class GraphRunner:
                 originating_finding=_finding_ref(session),
                 policy_ref={
                     "tenant_id": session.tenant_id,
-                    "policy_id": session.generated_policy["policy_id"],
-                    "version": session.generated_policy["version"],
+                    "policy_id": _policy_field(session.generated_policy, "policy_id"),
+                    "version": _policy_field(session.generated_policy, "version"),
                 },
                 deployment_ref={"deployment_id": deployment.get("deployment_id")},
                 time_acceleration_factor=self._scheduler.factor,
             )
-            elapsed = (datetime.now(tz=timezone.utc) - start).total_seconds()
+            elapsed = (datetime.now(tz=UTC) - start).total_seconds()
             time_to_deploy_seconds.labels(tenant_id=session.tenant_id).observe(elapsed)
 
             await self._telemetry_generator.simulate(
@@ -184,6 +182,13 @@ class GraphRunner:
                 deployment_id=deployment.get("deployment_id", ""),
                 directive=sim_directive,
             )
+
+
+def _policy_field(policy: dict[str, object] | None, key: str) -> str:
+    if policy is None:
+        return ""
+    value = policy.get(key)
+    return str(value) if value is not None else ""
 
 
 def _finding_ref(session: PolicyGenerationSession) -> dict[str, str]:

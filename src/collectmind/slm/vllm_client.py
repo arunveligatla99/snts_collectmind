@@ -15,7 +15,6 @@ import httpx
 
 from collectmind.slm.client import GenerationRequest, GenerationResponse, RuntimeInfo
 
-
 _REPO = "Qwen/Qwen2.5-7B-Instruct"
 _REVISION_SHA = "a09a35458c702b33eeacc393d103063234e8bc28"
 
@@ -43,16 +42,14 @@ class VLLMClient:
         )
 
     @classmethod
-    def from_env(cls) -> "VLLMClient":
+    def from_env(cls) -> VLLMClient:
         return cls(base_url=os.environ.get("SLM_BASE_URL", "http://slm-inference:8000"))
 
     def warmup(self) -> None:
         # Wait for /info to return the pinned revision.
         info = self._http.get(f"{self._base_url}/info", timeout=self._timeout).json()
         if info.get("slm_revision_sha") not in {None, _REVISION_SHA}:
-            raise RuntimeError(
-                f"vLLM /info reports unexpected revision: {info.get('slm_revision_sha')!r}"
-            )
+            raise RuntimeError(f"vLLM /info reports unexpected revision: {info.get('slm_revision_sha')!r}")
 
     def runtime_info(self) -> RuntimeInfo:
         return self._runtime_info

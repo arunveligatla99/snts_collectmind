@@ -7,7 +7,6 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-
 SemverStr = Annotated[str, StringConstraints(pattern=r"^\d+\.\d+\.\d+$", min_length=5)]
 NonEmptyStr = Annotated[str, StringConstraints(min_length=1)]
 

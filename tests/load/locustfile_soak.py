@@ -38,7 +38,6 @@ from locust import HttpUser, constant_pacing, events, task
 
 from tests.load._common import finding_payload, mint_token
 
-
 logger = logging.getLogger(__name__)
 
 SOAK_FAILURE_RATIO_CEILING = float(os.environ.get("SOAK_FAILURE_RATIO_CEILING", "0.001"))  # SC-003

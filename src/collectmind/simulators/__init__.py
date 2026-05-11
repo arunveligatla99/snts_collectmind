@@ -3,5 +3,4 @@
 from collectmind.simulators.diagnostic_finding_generator import DiagnosticFindingGenerator
 from collectmind.simulators.telemetry_generator import TelemetryGenerator
 
-
 __all__ = ["DiagnosticFindingGenerator", "TelemetryGenerator"]

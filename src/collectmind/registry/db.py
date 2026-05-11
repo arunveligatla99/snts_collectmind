@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import asyncpg
 import structlog
-
 
 logger = structlog.get_logger(__name__)
 
