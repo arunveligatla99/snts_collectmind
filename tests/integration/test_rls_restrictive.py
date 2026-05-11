@@ -61,14 +61,22 @@ def _apply_migration(name: str, direction: str) -> None:
 
 @pytest.fixture(scope="module")
 def restrictive_rls():
-    """Apply 012 forward at module setup; roll back at teardown."""
-    _apply_migration("012_rls_restrictive", "up")
+    """Ensure feature-002 migrations 012-017 are applied (idempotent via runner). Migration
+    017 provisions the non-BYPASSRLS ``collectmind_tenant`` role required by these tests."""
+    import asyncio
+    import os
+    from collectmind.registry.migrations.runner import apply_pending
+
+    dsn = os.environ.get(
+        "POSTGRES_DSN_HOST",
+        "postgresql://collectmind:localdev@localhost:5433/collectmind",
+    )
+    asyncio.run(apply_pending(dsn))
     yield
-    _apply_migration("012_rls_restrictive", "down")
 
 
 def test_missing_context_returns_zero_rows(restrictive_rls) -> None:  # noqa: ARG001
-    """T224: SELECT on every tenant-scoped table with NO ``app.tenant_id`` GUC returns 0 rows."""
+    """T224: SELECT under collectmind_tenant role with NO app.tenant_id GUC returns 0 rows."""
     tables = [
         "tenants",
         "diagnostic_findings",
@@ -81,83 +89,74 @@ def test_missing_context_returns_zero_rows(restrictive_rls) -> None:  # noqa: AR
         "erasure_requests",
     ]
     for table in tables:
-        # Use a fresh session each time so no GUC leaks.
-        result = _psql(f"SELECT count(*) FROM {table};")
-        # Migration tool runs as collectmind superuser which BYPASSRLS by default; force a
-        # tenant-scoped role for the test. The dev-role exists in feature-001 setup; if not,
-        # the test skips with a clear signal.
-        # For dev simplicity we instead set app.tenant_id to NULL explicitly and rely on the
-        # RESTRICTIVE policy refusing to match.
         result = _psql(
-            f"BEGIN; SET LOCAL app.tenant_id = ''; "
+            f"BEGIN; SET LOCAL ROLE collectmind_tenant; "
             f"SELECT count(*) FROM {table}; ROLLBACK;"
         )
         if result.returncode != 0:
             pytest.fail(f"SELECT on {table} failed: {result.stderr}")
-        # Output format: "BEGIN\nSET\n count \n-------\n N\n(1 row)\nROLLBACK\n"
-        # Per RESTRICTIVE policy with current_setting('app.tenant_id', true)='' (empty != tenant_id),
-        # rows MUST be 0 (modulo BYPASSRLS — the collectmind role IS the table owner. We accept
-        # any value but capture for diagnostic).
-        # NOTE: this test currently runs as the SUPERUSER role which bypasses RLS by default.
-        # Until a non-BYPASSRLS test-role is provisioned (Phase 9.b infra), this test will
-        # observe rows even under RESTRICTIVE. The expected red-phase failure is "count > 0"
-        # when count SHOULD be 0; the test asserts the intent and surfaces the BYPASSRLS gap.
-        assert "0" in result.stdout.split("\n")[-3].strip() or "0" in result.stdout, (
-            f"FR-002 violation: {table} returned non-zero rows under empty app.tenant_id "
-            f"(BYPASSRLS on the test role may be hiding this; expected 0)"
+        digits = [line.strip() for line in result.stdout.split("\n") if line.strip().isdigit()]
+        assert digits and digits[0] == "0", (
+            f"FR-002 violation: {table} returned {digits} rows under missing app.tenant_id "
+            f"(expected 0; non-BYPASSRLS collectmind_tenant role)"
         )
 
 
 def test_wrong_context_returns_zero_rows(restrictive_rls) -> None:  # noqa: ARG001
-    """T225: ``app.tenant_id = 'tenant-a'`` query targeting a tenant-b row returns 0 rows."""
-    # Insert as service-principal (BYPASSRLS) so we have known rows for both tenants.
+    """T225: app.tenant_id='tenant-a' query targeting tenant-b row returns 0 rows."""
+    # Seed both tenants as superuser (BYPASSRLS) so we have known rows.
     setup = """
-    INSERT INTO tenants (tenant_id, display_name) VALUES ('tenant-a', 'A'), ('tenant-b', 'B')
+    INSERT INTO tenants (tenant_id, display_name, oauth2_issuer, oauth2_audience)
+      VALUES ('tenant-a', 'A', 'http://mock-issuer:8088', 'collectmind-api'),
+             ('tenant-b', 'B', 'http://mock-issuer:8088', 'collectmind-api')
       ON CONFLICT DO NOTHING;
     """
     result = _psql(setup)
     if result.returncode != 0:
         pytest.fail(f"tenant setup failed: {result.stderr}")
 
-    # Query tenant-b row under tenant-a context; expect 0.
+    # Query tenant-b row under tenant-a context with the non-BYPASSRLS role; expect 0.
     result = _psql(
-        "BEGIN; SET LOCAL app.tenant_id = 'tenant-a'; "
+        "BEGIN; SET LOCAL ROLE collectmind_tenant; SET LOCAL app.tenant_id = 'tenant-a'; "
         "SELECT count(*) FROM tenants WHERE tenant_id = 'tenant-b'; ROLLBACK;"
     )
-    # Same BYPASSRLS caveat as T224; intent assertion below.
-    lines = [line.strip() for line in result.stdout.split("\n")]
-    # find the count value (numeric line between header dash and "(1 row)")
-    count = next((line for line in lines if line.isdigit()), None)
-    assert count == "0", (
-        f"FR-003 violation: tenant-a context returned {count} rows targeting tenant-b row "
-        f"(BYPASSRLS on the test role may be hiding this; expected 0)"
+    if result.returncode != 0:
+        pytest.fail(f"wrong-context test failed: {result.stderr}")
+    digits = [line.strip() for line in result.stdout.split("\n") if line.strip().isdigit()]
+    assert digits and digits[0] == "0", (
+        f"FR-003 violation: tenant-a context returned {digits} rows targeting tenant-b row "
+        f"(expected 0; non-BYPASSRLS collectmind_tenant role)"
     )
 
 
 def test_stale_gucs_fail_closed(restrictive_rls) -> None:  # noqa: ARG001
-    """T226: SET LOCAL semantics + Database.acquire() transaction wrapping → stale GUC reads 0.
-
-    Drive two consecutive transactions on the same psql session:
-        - Txn 1: SET LOCAL app.tenant_id='tenant-a'; insert a row; commit.
-        - Txn 2: (no SET LOCAL) SELECT for that row; MUST return 0 rows.
+    """T226: stale GUC across transaction boundaries returns 0 rows (failure-closed)."""
+    setup = """
+    INSERT INTO tenants (tenant_id, display_name, oauth2_issuer, oauth2_audience)
+      VALUES ('tenant-a', 'A', 'http://mock-issuer:8088', 'collectmind-api')
+      ON CONFLICT DO NOTHING;
     """
+    _psql(setup)
     sql = """
-    INSERT INTO tenants (tenant_id, display_name) VALUES ('tenant-a', 'A') ON CONFLICT DO NOTHING;
     BEGIN;
+      SET LOCAL ROLE collectmind_tenant;
       SET LOCAL app.tenant_id = 'tenant-a';
       SELECT count(*) AS in_txn FROM tenants WHERE tenant_id = 'tenant-a';
     COMMIT;
     BEGIN;
-      -- Deliberately do NOT set app.tenant_id; the prior SET LOCAL reverted on COMMIT.
+      SET LOCAL ROLE collectmind_tenant;
+      -- Deliberately do NOT set app.tenant_id; prior SET LOCAL reverted on COMMIT.
       SELECT count(*) AS post_txn FROM tenants WHERE tenant_id = 'tenant-a';
     COMMIT;
     """
     result = _psql(sql)
     if result.returncode != 0:
         pytest.fail(f"stale-GUC test failed: {result.stderr}")
-    # Look for two count values; the second MUST be 0.
     digits = [line.strip() for line in result.stdout.split("\n") if line.strip().isdigit()]
     assert len(digits) >= 2, f"expected two count rows; got output={result.stdout!r}"
+    # First transaction (with GUC set) sees its row.
+    assert digits[0] == "1", f"in-txn SELECT returned {digits[0]}; expected 1"
+    # Second transaction (no GUC) MUST return 0 — RESTRICTIVE missing-context defense.
     assert digits[1] == "0", (
         f"ADR-0007 Part 3 violation: second transaction (no SET LOCAL) returned "
         f"{digits[1]} rows; expected 0 under RESTRICTIVE policy missing-context defense."

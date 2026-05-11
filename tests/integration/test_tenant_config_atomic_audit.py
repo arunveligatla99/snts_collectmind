@@ -50,24 +50,27 @@ def _apply(name: str, direction: str) -> None:
 
 @pytest.fixture(scope="module")
 def feature_002_schema():
-    migrations = [
-        "012_rls_restrictive",
-        "013_audit_kind_widening",
-        "014_tenant_config",
-        "016_audit_events_uniqueness",
-    ]
-    for name in migrations:
-        _apply(name, "up")
+    """Assume feature-002 migrations are already applied (via orchestration-api startup or
+    a prior _apply). Tests under this fixture verify atomic-audit DB-trigger behavior; they
+    do NOT manipulate the migration state. Cleanup of test rows happens at teardown.
+    """
+    # Confirm the schema is in place; skip if not (e.g., dev environment without the runner).
+    check = _psql("SELECT 1 FROM pg_tables WHERE tablename='tenant_config';")
+    if "1" not in check.stdout:
+        pytest.skip(
+            "tenant_config table missing; apply migrations 012-016 (and 017 for the role) first. "
+            "Run: PYTHONPATH=src python -c 'import asyncio; "
+            "from collectmind.registry.migrations.runner import apply_pending; "
+            "asyncio.run(apply_pending(...))'"
+        )
     yield
-    # Purge new-kind rows before rolling 013 down (intentional strict-mode safety).
+    # Purge test-inserted rows so subsequent test runs are deterministic.
     _psql("""
         ALTER TABLE audit_events DISABLE TRIGGER audit_events_immutable;
-        DELETE FROM audit_events WHERE kind IN ('tenant_config_change', 'break_glass',
-          'deployment_rejected', 'vehicle_assignment_change');
+        DELETE FROM audit_events WHERE kind = 'tenant_config_change';
         ALTER TABLE audit_events ENABLE TRIGGER audit_events_immutable;
+        DELETE FROM tenant_config WHERE tenant_id IN ('tenant-a', 'tenant-b');
     """)
-    for name in reversed(migrations):
-        _apply(name, "down")
 
 
 def test_tenant_config_insert_produces_audit_row_in_same_transaction(feature_002_schema) -> None:  # noqa: ARG001
@@ -75,7 +78,7 @@ def test_tenant_config_insert_produces_audit_row_in_same_transaction(feature_002
     cid = f"test-tc-insert-{uuid.uuid4().hex}"
     tenant = "tenant-a"
     sql = f"""
-    INSERT INTO tenants (tenant_id, display_name) VALUES ('{tenant}', 'A') ON CONFLICT DO NOTHING;
+    INSERT INTO tenants (tenant_id, display_name, oauth2_issuer, oauth2_audience) VALUES ('{tenant}', 'TestTenant', 'http://mock-issuer:8088', 'collectmind-api') ON CONFLICT DO NOTHING;
     BEGIN;
       SET LOCAL app.tenant_id = '{tenant}';
       SET LOCAL app.correlation_id = '{cid}';
@@ -102,7 +105,7 @@ def test_tenant_config_update_produces_audit_row(feature_002_schema) -> None:  #
     cid_insert = f"test-tc-upd-i-{uuid.uuid4().hex}"
     cid_update = f"test-tc-upd-u-{uuid.uuid4().hex}"
     sql = f"""
-    INSERT INTO tenants (tenant_id, display_name) VALUES ('{tenant}', 'B') ON CONFLICT DO NOTHING;
+    INSERT INTO tenants (tenant_id, display_name, oauth2_issuer, oauth2_audience) VALUES ('{tenant}', 'B', 'http://mock-issuer:8088', 'collectmind-api') ON CONFLICT DO NOTHING;
     BEGIN;
       SET LOCAL app.tenant_id = '{tenant}';
       SET LOCAL app.correlation_id = '{cid_insert}';

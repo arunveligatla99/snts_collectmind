@@ -15,10 +15,13 @@ CREATE TABLE IF NOT EXISTS tenant_vehicles (
 
 ALTER TABLE tenant_vehicles ENABLE ROW LEVEL SECURITY;
 
+-- PERMISSIVE baseline (FOR SELECT only) + RESTRICTIVE per-tenant filter.
+CREATE POLICY tenant_vehicles_permissive_baseline ON tenant_vehicles FOR SELECT USING (true);
 CREATE POLICY tenant_vehicles_restrictive ON tenant_vehicles AS RESTRICTIVE
   FOR SELECT
   USING (
     current_setting('app.tenant_id', true) IS NOT NULL
+    AND current_setting('app.tenant_id', true) <> ''
     AND tenant_id = current_setting('app.tenant_id', true)
   );
 
@@ -44,10 +47,12 @@ CREATE INDEX IF NOT EXISTS tenant_vehicles_history_new_idx     ON tenant_vehicle
 ALTER TABLE tenant_vehicles_history ENABLE ROW LEVEL SECURITY;
 
 -- Tenant sees rows where they were either the prior or new owner.
+CREATE POLICY tenant_vehicles_history_permissive_baseline ON tenant_vehicles_history FOR SELECT USING (true);
 CREATE POLICY tenant_vehicles_history_restrictive ON tenant_vehicles_history AS RESTRICTIVE
   FOR SELECT
   USING (
     current_setting('app.tenant_id', true) IS NOT NULL
+    AND current_setting('app.tenant_id', true) <> ''
     AND (
       prev_tenant_id = current_setting('app.tenant_id', true)
       OR new_tenant_id = current_setting('app.tenant_id', true)

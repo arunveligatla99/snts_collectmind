@@ -19,6 +19,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from collectmind.audit_admin.api import router as audit_admin_router
 from collectmind.auth.dependencies import get_settings
 from collectmind.config import Settings
 from collectmind.deployer.signing import LocalKeySigner
@@ -48,11 +49,14 @@ from collectmind.query.api import router as query_router
 from collectmind.redis.client import HotStore
 from collectmind.registry.audit import AuditEventWriter
 from collectmind.registry.db import Database
+from collectmind.registry.migrations.runner import apply_pending
 from collectmind.registry.repository import (
     DeploymentRepository,
     OutcomeRepository,
     PolicyRepository,
 )
+from collectmind.registry.tenant_config import TenantConfigRepository
+from collectmind.registry.tenant_vehicles import TenantVehiclesRepository
 from collectmind.simulators.telemetry_generator import TelemetryGenerator
 from collectmind.slm.client import PolicyGeneratorClient
 from collectmind.slm.stub_client import FingerprintStubClient
@@ -111,6 +115,15 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     db = Database(settings.postgres_dsn)
     redis = HotStore(settings.redis_url)
     kafka = Producer(settings.kafka_bootstrap_servers)
+
+    # Feature 002 T233: opt-in migration runner on startup. Default OFF so the existing
+    # docker-entrypoint-initdb.d path (fresh-volume init) keeps working. Set
+    # ``MIGRATIONS_AUTO_APPLY=true`` to apply pending migrations on every container start.
+    if os.environ.get("MIGRATIONS_AUTO_APPLY", "false").lower() == "true":
+        applied = await apply_pending(settings.postgres_dsn)
+        if applied:
+            logger.info("migrations_applied_at_startup", versions=applied)
+
     await db.connect()
     await redis.connect()
     await kafka.start()
@@ -120,6 +133,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     outcome_repo = OutcomeRepository(db)
     audit_writer = AuditEventWriter(db)
     erasure_dispatcher = ErasureDispatcher(db, audit_writer)
+    tenant_config_repo = TenantConfigRepository(db)
+    tenant_vehicles_repo = TenantVehiclesRepository(db)
 
     signing_key_path = Path(os.environ.get("SIGNING_KEY_PATH", "./models/dev-signing.key"))
     signer = LocalKeySigner.from_path(signing_key_path, key_id="dev-key-1")
@@ -165,6 +180,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.signing_key_id = signer.key_id
     app.state.idempotency = IdempotencyChecker.from_db(db)
     app.state.schema_checker = SchemaVersionChecker(supported_major=1)
+    app.state.tenant_config_repo = tenant_config_repo
+    app.state.tenant_vehicles_repo = tenant_vehicles_repo
 
     feedback_task = asyncio.create_task(feedback.run_forever())
 
@@ -251,6 +268,10 @@ app.add_middleware(_MetricsMiddleware)
 app.include_router(ingest_router)
 app.include_router(query_router)
 app.include_router(erasure_router)
+# T238: break-glass router mounted as a DISTINCT router with its own operator-principal
+# dependency at the router boundary (ADR-0007 Part 5). FastAPI cannot route a request to
+# any handler inside this router unless the operator JWT audience claim is verified first.
+app.include_router(audit_admin_router)
 
 
 @app.exception_handler(CollectMindError)

@@ -5,7 +5,9 @@ DROP TRIGGER IF EXISTS tenant_vehicles_history_immutable ON tenant_vehicles_hist
 DROP FUNCTION IF EXISTS tenant_vehicles_audit_fn();
 DROP FUNCTION IF EXISTS tenant_vehicles_history_fn();
 DROP FUNCTION IF EXISTS tenant_vehicles_history_immutable_fn();
-DROP POLICY  IF EXISTS tenant_vehicles_history_restrictive ON tenant_vehicles_history;
-DROP POLICY  IF EXISTS tenant_vehicles_restrictive         ON tenant_vehicles;
+DROP POLICY  IF EXISTS tenant_vehicles_history_restrictive          ON tenant_vehicles_history;
+DROP POLICY  IF EXISTS tenant_vehicles_history_permissive_baseline  ON tenant_vehicles_history;
+DROP POLICY  IF EXISTS tenant_vehicles_restrictive                  ON tenant_vehicles;
+DROP POLICY  IF EXISTS tenant_vehicles_permissive_baseline          ON tenant_vehicles;
 DROP TABLE   IF EXISTS tenant_vehicles_history;
 DROP TABLE   IF EXISTS tenant_vehicles;

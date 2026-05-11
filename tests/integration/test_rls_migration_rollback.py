@@ -56,25 +56,68 @@ def _apply(name: str, direction: str) -> float:
     return elapsed
 
 
+def _ensure_clean_state() -> None:
+    """Best-effort cleanup so the test starts with feature-001 PERMISSIVE policies and no
+    feature-002 tables. The test environment may have feature-002 migrations applied from
+    a prior session; this rolls them back."""
+    for name in [
+        "017_tenant_role",
+        "016_audit_events_uniqueness",
+        "015_tenant_vehicles",
+        "014_tenant_config",
+        "013_audit_kind_widening",
+        "012_rls_restrictive",
+    ]:
+        path = MIGRATIONS_DIR / f"{name}.down.sql"
+        if path.exists():
+            _psql(
+                "ALTER TABLE audit_events DISABLE TRIGGER audit_events_immutable; "
+                "DELETE FROM audit_events WHERE kind IN ('break_glass','tenant_config_change',"
+                "'deployment_rejected','vehicle_assignment_change'); "
+                "ALTER TABLE audit_events ENABLE TRIGGER audit_events_immutable;"
+            )
+            _psql(path.read_text(encoding="utf-8"))
+
+
+def _restore_feature_002_state() -> None:
+    """Re-apply the full feature-002 migration chain so downstream tests see consistent state."""
+    import asyncio
+    from collectmind.registry.migrations.runner import apply_pending
+    asyncio.run(apply_pending(
+        "postgresql://collectmind:localdev@localhost:5433/collectmind"
+    ))
+
+
 def test_012_forward_then_backward_within_budget() -> None:
     """012 forward + backward each complete within SC-010 budget."""
+    _ensure_clean_state()
     fwd = _apply("012_rls_restrictive", "up")
     assert fwd <= SC_010_BUDGET_SECONDS, f"forward took {fwd:.2f}s (>SC-010 budget {SC_010_BUDGET_SECONDS}s)"
 
-    # Confirm RESTRICTIVE policies in place.
+    # Confirm RESTRICTIVE policies in place (9 RESTRICTIVE + 9 PERMISSIVE_baseline = 18 total).
     inspect = _psql("SELECT count(*) FROM pg_policies WHERE permissive = 'RESTRICTIVE';")
-    assert "9" in inspect.stdout, f"expected 9 RESTRICTIVE policies; output={inspect.stdout!r}"
+    digits = [line.strip() for line in inspect.stdout.split("\n") if line.strip().isdigit()]
+    assert digits and digits[0] == "9", (
+        f"expected 9 RESTRICTIVE policies; got {digits}"
+    )
 
     bck = _apply("012_rls_restrictive", "down")
     assert bck <= SC_010_BUDGET_SECONDS, f"backward took {bck:.2f}s"
 
-    # Confirm PERMISSIVE policies restored.
+    # Confirm PERMISSIVE-only policies restored.
     inspect = _psql("SELECT count(*) FROM pg_policies WHERE policyname LIKE '%_permissive';")
-    assert "9" in inspect.stdout, f"expected 9 PERMISSIVE policies post-rollback; output={inspect.stdout!r}"
+    digits = [line.strip() for line in inspect.stdout.split("\n") if line.strip().isdigit()]
+    assert digits and digits[0] == "9", (
+        f"expected 9 PERMISSIVE policies post-rollback; got {digits}"
+    )
+
+    # Restore feature-002 schema so downstream tests see consistent state.
+    _restore_feature_002_state()
 
 
 def test_012_through_016_full_forward_chain_within_budget() -> None:
     """Apply 012 through 016 forward in sequence; assert combined wall-clock fits the budget."""
+    _ensure_clean_state()
     migrations = [
         "012_rls_restrictive",
         "013_audit_kind_widening",
@@ -94,10 +137,12 @@ def test_012_through_016_full_forward_chain_within_budget() -> None:
             "SELECT count(*) FROM pg_tables WHERE tablename IN "
             "('tenant_config', 'tenant_vehicles', 'tenant_vehicles_history');"
         )
-        assert "3" in inspect.stdout, f"expected 3 new tables; output={inspect.stdout!r}"
+        digits = [line.strip() for line in inspect.stdout.split("\n") if line.strip().isdigit()]
+        assert digits and digits[0] == "3", (
+            f"expected 3 new tables; got {digits}"
+        )
     finally:
         # Always roll back so the next test sees clean state.
-        # Purge new-kind rows before rolling 013 down (intentional strict-mode per .down.sql).
         _psql("""
             ALTER TABLE audit_events DISABLE TRIGGER audit_events_immutable;
             DELETE FROM audit_events WHERE kind IN
@@ -106,3 +151,5 @@ def test_012_through_016_full_forward_chain_within_budget() -> None:
         """)
         for name in reversed(migrations):
             _apply(name, "down")
+        # Restore feature-002 schema so downstream tests see consistent state.
+        _restore_feature_002_state()

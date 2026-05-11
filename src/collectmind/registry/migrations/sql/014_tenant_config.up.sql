@@ -13,13 +13,17 @@ CREATE TABLE IF NOT EXISTS tenant_config (
 
 ALTER TABLE tenant_config ENABLE ROW LEVEL SECURITY;
 
--- RESTRICTIVE per FR-013a: tenant-scoped SELECT for own row only.
--- Non-service principals are denied INSERT/UPDATE/DELETE by absence of any permissive
--- policy (RLS default = deny). Service-principal connections bypass RLS via BYPASSRLS.
+-- PERMISSIVE baseline (FOR SELECT only): allows tenant-scoped reads. The RESTRICTIVE filter
+-- below narrows the visible set to the requesting tenant's own row.
+-- INSERT/UPDATE/DELETE remain denied (no FOR ALL or FOR INSERT permissive policy);
+-- service-principal connections bypass RLS via the BYPASSRLS superuser role.
+CREATE POLICY tenant_config_permissive_baseline ON tenant_config FOR SELECT USING (true);
+
 CREATE POLICY tenant_config_restrictive_select ON tenant_config AS RESTRICTIVE
   FOR SELECT
   USING (
     current_setting('app.tenant_id', true) IS NOT NULL
+    AND current_setting('app.tenant_id', true) <> ''
     AND tenant_id = current_setting('app.tenant_id', true)
   );
 

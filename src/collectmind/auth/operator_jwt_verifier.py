@@ -19,11 +19,11 @@ from __future__ import annotations
 from functools import lru_cache
 
 from collectmind.auth.jwt_verifier import JWTVerifier
-from collectmind.config import Settings, load_settings
+from collectmind.config import load_settings
 
 
 @lru_cache(maxsize=1)
-def get_operator_verifier(settings: Settings | None = None) -> JWTVerifier:
+def get_operator_verifier() -> JWTVerifier:
     """Return a process-singleton operator-issuer ``JWTVerifier``.
 
     The verifier rejects tenant-audience tokens (audience ``collectmind-tenant``) by virtue
@@ -31,7 +31,7 @@ def get_operator_verifier(settings: Settings | None = None) -> JWTVerifier:
     handler is reached. The verifier accepts operator-audience tokens issued by the
     operator-issuer.
     """
-    s = settings or load_settings()
+    s = load_settings()
     return JWTVerifier(
         issuer_url=s.operator_issuer_url,
         audience=s.operator_issuer_audience,
