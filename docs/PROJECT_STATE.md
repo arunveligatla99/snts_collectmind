@@ -1,9 +1,23 @@
 # Project State — CollectMind
 
 **Updated**: 2026-05-11
-**Branch**: `001-policy-loop-vertical-slice`
+**Branch**: `002-multi-tenant-isolation`
 **Constitution**: v1.0.1 at `.specify/memory/constitution.md`
-**Status**: **Feature 001 — `policy-loop-vertical-slice` — is shipped** (commits `990b437` + `a49939e`). Closure artifact: [`docs/runbook/feature-001-readiness-review.md`](runbook/feature-001-readiness-review.md). Next feature: `002-multi-tenant-isolation` — **not yet started**.
+**Status**: **Feature 001 — `policy-loop-vertical-slice` — is shipped** (commits `990b437` + `a49939e`). Closure artifact: [`docs/runbook/feature-001-readiness-review.md`](runbook/feature-001-readiness-review.md). **Feature 002 — `multi-tenant-isolation` — PLAN COMPLETE; tasks generated** (commits `d085f19` spec/clarify + `d4c83c9` plan/ADRs; tasks at `specs/002-multi-tenant-isolation/tasks.md`). ADRs 0007/0008/0009 Proposed; promote to Accepted at feature-002 closure.
+
+## Phase status (feature 002 — PLAN COMPLETE; implementation not started)
+
+| Phase | Range | Status | Anchor commit |
+|---|---|---|---|
+| Phase 8: Setup + Foundational (T200–T211) | Compose `operator-issuer` profile, dual-issuer JWT verifier, audit writer extension, migrations 011-014 (RLS RESTRICTIVE, tenant_config, tenant_vehicles + history, audit-events UNIQUE constraint), contracts mirroring | **Not started** | — |
+| Phase 9: US1 — Tenant data isolated end-to-end (T220–T245) | Red-phase contract + integration + unit tests; RLS migration; break-glass router + atomic audit; tenant_config + tenant_vehicles repositories; cross-tenant 404 collapse | **Not started** | — |
+| Phase 10: US2 — Noisy-neighbor rate limiting (T246–T263) | Token-bucket Lua, middleware, config_cache with LISTEN/NOTIFY, failure-closed posture, defaults, metrics, runbooks, Grafana panels | **Not started** | — |
+| Phase 11: US3 — Hot-store key tenancy (T264–T271) | Key-shape transition (TTL-driven natural rollover); fallback-read branch; legacy-shape Fatal guard | **Not started** | — |
+| Phase 12: US4 — Deployment-client tenant scoping (T272–T279) | ownership_cache, tenant_scope_check, deployer wiring + Fatal class, deployment-rejected audit row, alert routing | **Not started** | — |
+| Phase 13: Observability + operational surface (T280–T284) | Prometheus rules.yaml + Grafana panels + Alertmanager + runbook completeness gate extension | **Not started** | — |
+| Phase 14: Polish + closure (T285–T296) | Coverage sweep; ruff + mypy strict; OpenAPI dump diff; threat model extension; T142 PII-strip CI gate; quickstart re-run; readiness review; ADR promotion; one-time-cleanup PR | **Not started** | — |
+
+Plan-output artifacts at [`specs/002-multi-tenant-isolation/`](../specs/002-multi-tenant-isolation/): spec.md (commit `d085f19`), plan.md, research.md, data-model.md, contracts/, quickstart.md (all commit `d4c83c9`). Tasks file: [`tasks.md`](../specs/002-multi-tenant-isolation/tasks.md). Three ADRs (`0007`/`0008`/`0009`) at status Proposed under [`docs/adr/`](adr/).
 
 ## Phase status (feature 001 — all phases closed)
 
