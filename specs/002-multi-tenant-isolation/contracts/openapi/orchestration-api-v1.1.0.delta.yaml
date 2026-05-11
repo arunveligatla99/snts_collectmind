@@ -1,0 +1,82 @@
+openapi: 3.1.0
+info:
+  title: CollectMind Orchestration API — feature-002 delta (v1.0.0 → v1.1.0)
+  version: 1.1.0
+  description: |
+    This document records the additive changes applied to
+    `contracts/openapi/orchestration-api.v1.yaml` (the canonical contract at repo
+    root) during feature 002. It is a delta document, not a stand-alone contract;
+    the full v1.1.0 schema is the v1.0.0 schema plus the modifications below.
+
+    Version bump rationale: a new 429 response on every existing endpoint plus
+    a clarification on the 400/422 → 404 collapse for cross-tenant payload claims.
+    All changes are backward-compatible; v1.0.0 clients continue to work.
+
+    See:
+      - spec.md       FR-006, FR-007, FR-011
+      - ADR-0008      decision and rationale (rate-limit response shape)
+  license:
+    name: Apache-2.0
+paths:
+  /findings:
+    post:
+      responses:
+        '202':
+          description: |
+            Finding accepted. Unchanged from v1.0.0. Note that
+            FR-007 requires the tenant identifier to be derived exclusively from
+            the JWT; if the payload carries a tenant_id field whose value
+            disagrees with the JWT claim the request is rejected with 404
+            (FR-006: cross-tenant write attempts return 404, not 422, to avoid an
+            existence oracle).
+        '404':
+          description: |
+            NEW SEMANTIC in v1.1.0. Returned when the payload's tenant_id (if
+            present) does not match the JWT-derived tenant_id. The response
+            shape MUST NOT reveal whether the named tenant exists. Prior to
+            v1.1.0 this case returned 422 Unprocessable Entity.
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /erasure-requests:
+    post:
+      responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # /health and /ready are NOT rate-limited per FR-017 (rate-limit decisions only
+  # after JWT verification; health and readiness are unauthenticated).
+
+components:
+  responses:
+    RateLimited:
+      description: |
+        The requesting tenant exceeded its configured rate limit (FR-010, FR-011).
+        The `Retry-After` header carries the recommended retry interval in seconds.
+        The rate-limit decision is also emitted as a Prometheus metric
+        (`collectmind_ratelimit_decision_total{tenant_id,endpoint,decision="reject"}`)
+        and as a structured log event.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RateLimitedError'
+  schemas:
+    RateLimitedError:
+      type: object
+      required: [code, message, retry_after_seconds]
+      properties:
+        code:
+          type: string
+          enum: [rate_limit_exceeded]
+        message:
+          type: string
+        retry_after_seconds:
+          type: integer
+          minimum: 1
+        correlation_id:
+          type: string

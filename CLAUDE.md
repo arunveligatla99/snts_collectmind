@@ -3,19 +3,26 @@
 This file is the entry point for any Claude Code session opened against this repo. Read it first. Read the files at the end before doing any work.
 
 <!-- SPECKIT START -->
-**Feature 001 — `policy-loop-vertical-slice` — is shipped** (commits `990b437` + `a49939e`). The closure artifact is [`docs/runbook/feature-001-readiness-review.md`](docs/runbook/feature-001-readiness-review.md): every NON-NEGOTIABLE constitutional principle (IV, VII, IX, X, XI, XIII, XIV) is PASS with a named artifact. Three Phase-7 follow-ups are listed in [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md): ADR-0002 baseline + Accepted promotion (gated to a GPU runner), SC-009 rolling-5-PR wall-clock window logic (gated to the first PR-tier CI run), T142 PII-strip CI gate (closes SC-007).
+**Feature 001 — `policy-loop-vertical-slice` — is shipped** (commits `990b437` + `a49939e`). Closure artifact at [`docs/runbook/feature-001-readiness-review.md`](docs/runbook/feature-001-readiness-review.md): every NON-NEGOTIABLE constitutional principle (IV, VII, IX, X, XI, XIII, XIV) is PASS with a named artifact.
 
-**The next feature is `002-multi-tenant-isolation`. It has not been started.** When `/speckit-specify` begins for feature 002, point the SPECKIT block below at the new `specs/002-…` directory and update the four-file scaffold (`docs/TASKS.md` alias, `docs/PROJECT_STATE.md` phase table).
+**Feature 002 — `multi-tenant-isolation` — is in PLAN phase** (branch `002-multi-tenant-isolation`; spec at `d085f19` includes clarify-session-2026-05-11 resolutions). Plan artifacts under `specs/002-multi-tenant-isolation/`. Three new ADRs at status **Proposed**: ADR-0007 (RLS hardening + break-glass), ADR-0008 (per-tenant rate limiting + hot-store migration), ADR-0009 (tenant-vehicle ownership store). Plan-output artifacts are the source of truth pending `/speckit.tasks`.
 
-For the duration of feature 001 closure the active spec-kit feature remains `001-policy-loop-vertical-slice`. Its artifacts are still load-bearing:
+Active feature artifacts (feature 002):
+
+- Plan: `specs/002-multi-tenant-isolation/plan.md`
+- Spec: `specs/002-multi-tenant-isolation/spec.md`
+- Research notes: `specs/002-multi-tenant-isolation/research.md`
+- Data model: `specs/002-multi-tenant-isolation/data-model.md`
+- Contracts: `specs/002-multi-tenant-isolation/contracts/` (audit-admin.v1.yaml NEW; orchestration-api + query-api delta files for v1.1.0)
+- Quickstart: `specs/002-multi-tenant-isolation/quickstart.md`
+
+Feature 001 artifacts remain load-bearing as the inherited baseline (Spec Dependencies §):
 
 - Plan: `specs/001-policy-loop-vertical-slice/plan.md`
 - Spec: `specs/001-policy-loop-vertical-slice/spec.md`
-- Research notes: `specs/001-policy-loop-vertical-slice/research.md`
-- Data model: `specs/001-policy-loop-vertical-slice/data-model.md`
-- Contracts: `specs/001-policy-loop-vertical-slice/contracts/`
-- Quickstart: `specs/001-policy-loop-vertical-slice/quickstart.md`
-- Readiness review (closure): `docs/runbook/feature-001-readiness-review.md`
+- Readiness review: `docs/runbook/feature-001-readiness-review.md`
+
+Three Phase-7 follow-ups from feature 001 still listed in [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md): ADR-0002 baseline + Accepted promotion (gated to a GPU runner), SC-009 rolling-5-PR wall-clock window logic (gated to the first PR-tier CI run), T142 PII-strip CI gate (closes SC-007). T142 is an upstream dependency of feature-002 SC-007 per Spec Assumptions §8.
 
 The constitution at `.specify/memory/constitution.md` (v1.0.1) is the highest-priority artifact and overrides any plan choice in conflict with it.
 <!-- SPECKIT END -->
@@ -43,6 +50,9 @@ ADRs live at `docs/adr/`. Drafting cadence and table of contents at `docs/adr/RE
 | ADR-0004 | Deterministic-fingerprint Policy Generator stub | Accepted |
 | ADR-0005 | SLM hosting topology on AWS — ECS-on-EC2 g5/g6 default | Accepted |
 | ADR-0006 | Dev-only `DevDefaultPolicyClient` for local-development workflows (no real SLM required) | Accepted |
+| ADR-0007 | Row-Level Security hardening posture + break-glass service-principal bypass | **Proposed** (feature 002 plan output; promotes to Accepted at feature 002 closure) |
+| ADR-0008 | Per-tenant ingress rate limiting + hot-store key migration mechanism | **Proposed** (feature 002 plan output; promotes to Accepted at feature 002 closure) |
+| ADR-0009 | Tenant-Vehicle Ownership store — mutable current row + append-only history | **Proposed** (feature 002 plan output; promotes to Accepted at feature 002 closure) |
 
 ## Principles (load-bearing; do not relax silently)
 
