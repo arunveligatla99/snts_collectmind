@@ -12,9 +12,18 @@ from collectmind.registry.audit import AuditEventWriter, _row_to_event
 
 
 class _FakeConn:
-    def __init__(self, fetch_rows: list[dict[str, Any]] | None = None) -> None:
+    def __init__(
+        self,
+        fetch_rows: list[dict[str, Any]] | None = None,
+        fetchrow_row: dict[str, Any] | None = None,
+    ) -> None:
         self.execute = AsyncMock()
         self.fetch_rows = fetch_rows or []
+        # Feature 002: audit writer uses fetchrow for ``INSERT ... ON CONFLICT DO NOTHING RETURNING event_id``.
+        # Default returns a synthetic event_id row so the writer's happy path returns it directly.
+        if fetchrow_row is None:
+            fetchrow_row = {"event_id": "synthetic-event-id"}
+        self.fetchrow = AsyncMock(return_value=fetchrow_row)
 
     async def fetch(self, _sql: str, *_args: Any) -> list[dict[str, Any]]:
         return list(self.fetch_rows)
@@ -50,7 +59,7 @@ async def test_write_accepted_event_inserts_row() -> None:
         inbound_schema_version="1.0.0",
     )
     assert isinstance(event_id, str) and event_id
-    conn.execute.assert_awaited_once()
+    conn.fetchrow.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -87,7 +96,7 @@ async def test_write_generated_event_passes_with_full_fr017a_set() -> None:
         prompt_template_version="v1.0.0",
     )
     assert event_id
-    conn.execute.assert_awaited_once()
+    conn.fetchrow.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -103,7 +112,7 @@ async def test_write_with_error_stuffs_into_extras() -> None:
         error={"code": "VALIDATION_FAILED", "message": "bad"},
     )
     # Inspect the bound SQL args; originating_finding JSON should contain _extras.error.
-    call_args = conn.execute.await_args
+    call_args = conn.fetchrow.await_args
     # Positional args: sql, event_id, tenant_id, kind, originating_json, ...
     originating_json = call_args.args[4]
     assert "_extras" in originating_json

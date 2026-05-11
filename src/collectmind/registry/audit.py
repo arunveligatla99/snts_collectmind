@@ -1,4 +1,13 @@
-"""AuditEventWriter (T086). Enforces FR-017a minimum field set."""
+"""AuditEventWriter (T086 + T209). Enforces FR-017a + feature-002 minimum field sets.
+
+Feature 002 extension:
+    - Accepts four new audit-row kinds: break_glass, tenant_config_change,
+      deployment_rejected, vehicle_assignment_change.
+    - Enforces per-kind minimum field sets at write time (mirrors the kind=generated
+      FR-017a pattern from feature 001).
+    - Uses ON CONFLICT DO NOTHING against the UNIQUE (correlation_id, kind) constraint
+      shipped by migration 016 (closes feature-001 Flag 9 deferral).
+"""
 
 from __future__ import annotations
 
@@ -9,6 +18,26 @@ from typing import Any
 import ulid
 
 from collectmind.registry.db import Database
+
+# Per-kind required-field maps for feature-002 audit kinds. Feature-001 kind=generated
+# still uses the inline check below; the new kinds use the _extras['minimum_field_set']
+# carrier on originating_finding (mirrors feature-001 Flag 10 _extras hack).
+_KIND_MIN_FIELDS: dict[str, tuple[str, ...]] = {
+    "break_glass": ("operator_principal_subject", "tenant_scope", "reason_code"),
+    "tenant_config_change": ("service_principal_subject", "target_tenant_id"),
+    "deployment_rejected": (
+        "policy_ref",
+        "target_vehicle_id",
+        "policy_declared_tenant_id",
+        "vehicle_owning_tenant_id",
+    ),
+    "vehicle_assignment_change": (
+        "service_principal_subject",
+        "vehicle_id",
+        "new_tenant_id",
+        "reason_code",
+    ),
+}
 
 
 class AuditEventWriter:
@@ -53,6 +82,11 @@ class AuditEventWriter:
             ]
             if missing:
                 raise ValueError(f"audit kind=generated missing required fields: {missing}")
+        elif kind in _KIND_MIN_FIELDS:
+            payload = originating_finding or {}
+            missing = [field for field in _KIND_MIN_FIELDS[kind] if field not in payload]
+            if missing:
+                raise ValueError(f"audit kind={kind} missing required fields: {missing}")
         event_id = str(ulid.new())
         async with self._db.acquire(tenant_id) as conn:
             extras: dict[str, Any] = {}
@@ -61,7 +95,10 @@ class AuditEventWriter:
             originating_with_extras = dict(originating_finding or {})
             if extras:
                 originating_with_extras.setdefault("_extras", extras)
-            await conn.execute(
+            # ON CONFLICT DO NOTHING against UNIQUE (correlation_id, kind) per migration 016.
+            # Retry-safe: a duplicate (correlation_id, kind) write coalesces to the prior row.
+            # The returned event_id reflects the persisted-row id (existing-on-conflict).
+            row = await conn.fetchrow(
                 """
                 INSERT INTO audit_events (
                   event_id, tenant_id, kind, originating_finding, policy_ref,
@@ -73,6 +110,8 @@ class AuditEventWriter:
                   $1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7::jsonb,
                   $8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
                 )
+                ON CONFLICT (correlation_id, kind) DO NOTHING
+                RETURNING event_id
                 """,
                 event_id,
                 tenant_id,
@@ -94,7 +133,19 @@ class AuditEventWriter:
                 correlation_id,
                 datetime.now(tz=UTC),
             )
-        return event_id
+            if row is None:
+                existing = await conn.fetchrow(
+                    "SELECT event_id FROM audit_events WHERE correlation_id = $1 AND kind = $2",
+                    correlation_id,
+                    kind,
+                )
+                if existing is None:
+                    raise RuntimeError(
+                        f"audit upsert returned no row and no existing row for "
+                        f"(correlation_id={correlation_id}, kind={kind})"
+                    )
+                return str(existing["event_id"])
+            return str(row["event_id"])
 
     async def list_for_correlation(self, tenant_id: str, correlation_id: str) -> list[dict[str, Any]]:
         async with self._db.acquire(tenant_id) as conn:

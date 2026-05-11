@@ -1,0 +1,196 @@
+openapi: 3.1.0
+info:
+  title: CollectMind Audit Admin API (break-glass)
+  version: 1.0.0
+  description: |
+    Break-glass service-principal interface for cross-tenant audit queries. Distinct
+    surface from the regular Operator Query API (`query-api.v1.yaml`) by design:
+    the two routers share no code path, the authentication audience claims differ
+    (`collectmind-operator` here vs `collectmind-tenant` on the regular API), and
+    the DB-access primitives differ (this surface bypasses Row-Level Security via a
+    service-principal connection; the regular surface runs under the requesting
+    tenant's RLS context).
+
+    Every invocation MUST produce a `kind=break_glass` row in `audit_events` in
+    the same database transaction as the bypassed SELECT (FR-005b). The audit row
+    captures the operator principal, the tenant scope queried, the documented
+    reason code, and the correlation identifier.
+
+    See:
+      - spec.md       FR-005, FR-005a, FR-005b, FR-005c, SC-013
+      - ADR-0007      decision and rationale
+      - research.md   §3 (authentication), §4 (signaling)
+  license:
+    name: Apache-2.0
+servers:
+  - url: https://collectmind.local/api/v1
+    description: Local foundation smoke (with the `operator-issuer` Compose profile up)
+  - url: https://api.collectmind.example.com/v1
+    description: Cloud deployment; reachable only from inside the operator VPC
+security:
+  - operatorAuth: []
+paths:
+  /audit/break-glass/query:
+    post:
+      operationId: breakGlassAuditQuery
+      summary: Execute a break-glass cross-tenant audit query
+      description: |
+        Reads `audit_events` rows for a tenant other than the requesting principal's
+        home tenant. Requires an operator JWT (audience `collectmind-operator`).
+        Writes a `kind=break_glass` audit row in the same database transaction as
+        the bypassed SELECT; if the audit-row write fails the transaction aborts
+        and the response is 500 (the audit row's absence is itself a signal).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BreakGlassRequest'
+      responses:
+        '200':
+          description: |
+            Audit events for the named tenant scope. The response is identical in
+            shape to the regular audit-query response so the operator-facing surface
+            in a future feature can render it with the same code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventList'
+        '400':
+          description: Malformed request (invalid reason_code, missing tenant_scope, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: |
+            JWT audience claim is not `collectmind-operator`. Returned without revealing
+            whether the named tenant scope exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: |
+            No audit events match the named tenant_scope + correlation_id. Returned
+            without revealing whether the tenant exists or whether other correlation
+            ids exist for that tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: |
+            Audit-row write failed; the bypassed SELECT was rolled back. The operator
+            sees no audit events; the operator-side incident-response procedure is to
+            check the orchestration-api logs and the Prometheus
+            `collectmind_break_glass_audit_write_failure_total` counter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    operatorAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        OAuth2 client-credentials JWT signed by the operator-issuer (audience
+        `collectmind-operator`). Verified by `src/collectmind/auth/operator_principal.py`
+        via the same PyJWT + JWKS pipeline used for tenant JWTs.
+  schemas:
+    BreakGlassRequest:
+      type: object
+      required: [tenant_scope, correlation_id, reason_code]
+      properties:
+        tenant_scope:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: |
+            The target tenant identifier whose audit events are to be read. The
+            bypass primitive refuses to read rows outside this scope; widening the
+            scope mid-flight is impossible by construction (the service-principal
+            SELECT is parameterized on this value).
+        correlation_id:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: |
+            The audit-event correlation identifier. Matches the same correlation_id
+            shape used by the regular audit-query API.
+        reason_code:
+          type: string
+          enum:
+            - incident_response
+            - legal_hold
+            - regulator_request
+            - support_escalation
+            - operator_self_audit
+          description: |
+            The documented enumeration of break-glass reasons. Captured in the
+            `kind=break_glass` audit row. Extending the enumeration requires an
+            ADR amendment to ADR-0007.
+    AuditEventList:
+      type: object
+      required: [events, total]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        total:
+          type: integer
+          minimum: 0
+    AuditEvent:
+      type: object
+      description: |
+        Same shape as the AuditEvent type in `query-api.v1.yaml`, with the `kind`
+        enumeration extended to include the four new kinds shipped by feature 002.
+      required: [event_id, tenant_id, kind, correlation_id, occurred_at]
+      properties:
+        event_id:
+          type: string
+        tenant_id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - generated
+            - validated
+            - deployed
+            - outcome
+            - break_glass
+            - tenant_config_change
+            - deployment_rejected
+            - vehicle_assignment_change
+        correlation_id:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+        extras:
+          type: object
+          description: |
+            Per-kind minimum field set. Required keys per kind:
+            - generated, validated, deployed, outcome: see feature 001's audit primitive (FR-017a).
+            - break_glass:                operator_principal_subject, tenant_scope, reason_code, correlation_id
+            - tenant_config_change:       service_principal_subject, target_tenant_id, prior_values, new_values, correlation_id
+            - deployment_rejected:        policy_ref, target_vehicle_id, policy_declared_tenant_id, vehicle_owning_tenant_id, correlation_id
+            - vehicle_assignment_change:  service_principal_subject, vehicle_id, prior_tenant_id, new_tenant_id, reason_code, correlation_id
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: A machine-readable error code from the documented enumeration.
+        message:
+          type: string
+          description: A human-readable error message. MUST NOT leak cross-tenant identifiers.
+        correlation_id:
+          type: string
+          description: The request's correlation identifier for log lookup.

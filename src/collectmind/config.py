@@ -27,6 +27,12 @@ class Settings(BaseSettings):
 
     service_name: str = Field(default="collectmind-orchestration-api")
 
+    # Feature 002: operator-issuer for the break-glass surface (ADR-0007 Part 4).
+    # Distinct issuer + audience from the tenant-issuer; verified by the same
+    # PyJWT + JWKS pipeline parameterized over issuer URL + audience.
+    operator_issuer_url: str = Field(default="http://operator-issuer:8088")
+    operator_issuer_audience: str = Field(default="collectmind-operator")
+
 
 def load_settings() -> Settings:
     return Settings()

@@ -1,0 +1,12 @@
+issuer: http://operator-issuer:8088
+audience: collectmind-operator
+key_id: operator-dev-key-1
+clients:
+  - client_id: operator-alice
+    client_secret: local-dev-only
+    tenant_id: operator
+    scopes: [audit:break-glass, tenant-config:write, tenant-vehicles:write]
+  - client_id: operator-bob
+    client_secret: local-dev-only
+    tenant_id: operator
+    scopes: [audit:break-glass]
