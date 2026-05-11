@@ -1,0 +1,119 @@
+name: CI (workflow_dispatch — full SLM, load, IaC apply)
+
+# T120 — workflow_dispatch tier. Constitution Principle XIV.
+#
+# Runs:
+# - Full-profile Locust against the real SLM at SC-002's profile.
+# - Broader SLM contract regression against the full corpus.
+# - Eval-suite run (for ADR-0002 baseline; T137 follow-up commit consumes it).
+# - terraform apply -workspace=dev. Apply is GATED to this workflow only;
+#   the PR-tier workflow runs plan-only. The dev workspace is the only
+#   workspace this workflow targets; staging and prod live in separate
+#   workflows that an operator triggers explicitly.
+
+on:
+  workflow_dispatch:
+    inputs:
+      slm_profile:
+        description: "SLM profile to use (vllm | cpu)"
+        required: true
+        default: "vllm"
+        type: choice
+        options: [vllm, cpu]
+      apply_iac:
+        description: "Run terraform apply against the dev workspace"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PYTHON_VERSION: "3.11.9"
+  SLM_PROFILE: ${{ inputs.slm_profile }}
+  COLLECTMIND_ENV: ci
+
+jobs:
+  full-slm-contract-regression:
+    name: Full SLM contract regression
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev,gpu]"
+      - name: Bring stack up with real SLM
+        run: docker compose -f infra/compose/docker-compose.yaml --profile default up -d
+      - name: Wait for /ready
+        run: until curl -fsS http://localhost:8081/ready >/dev/null 2>&1; do sleep 5; done
+      - name: Wait for SLM /info
+        run: until curl -fsS http://localhost:8000/v1/models >/dev/null 2>&1; do sleep 5; done
+      - name: Full SLM contract corpus (Principle XIV)
+        env:
+          SLM_PROFILE: ${{ inputs.slm_profile }}
+          POLICY_CORPUS_ROOT: tests/fixtures/policy_corpus
+        run: PYTHONPATH=src pytest tests/contract/test_slm_client_contract.py -v --no-cov
+
+  full-load:
+    name: Full-profile Locust (SC-002)
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 60
+    needs: [full-slm-contract-regression]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev,gpu]"
+      - name: Bring stack up
+        run: docker compose -f infra/compose/docker-compose.yaml --profile default up -d
+      - run: until curl -fsS http://localhost:8081/ready >/dev/null 2>&1; do sleep 5; done
+      - name: locust full-profile (1000 users, 30m)
+        run: |
+          mkdir -p reports
+          PYTHONPATH=. locust -f tests/load/locustfile_full.py \
+            --headless --users 1000 --spawn-rate 50 --run-time 30m \
+            --host http://localhost:8081 --csv reports/full
+      - uses: actions/upload-artifact@v4
+        with: { name: full-load-stats, path: reports/full* }
+
+  eval-suite:
+    name: Eval suite (ADR-0002 baseline)
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 90
+    needs: [full-slm-contract-regression]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev,gpu]"
+      - name: make eval
+        run: make eval
+      - uses: actions/upload-artifact@v4
+        with: { name: eval-results, path: reports/eval* }
+
+  terraform-apply-dev:
+    name: terraform apply (dev workspace ONLY)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: ${{ inputs.apply_iac == true }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_DEV_ROLE_ARN }}
+          aws-region: us-east-1
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: "1.9.8" }
+      - name: terraform apply per module (dev only)
+        env:
+          TF_WORKSPACE: dev
+        # Apply order respects dependency: networking -> data/storage/secrets
+        # -> compute -> observability -> ci_runner.
+        run: |
+          for d in networking data storage secrets compute observability ci_runner; do
+            terraform -chdir=infra/terraform/$d init
+            terraform -chdir=infra/terraform/$d apply -input=false -auto-approve
+          done

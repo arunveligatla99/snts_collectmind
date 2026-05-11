@@ -2,11 +2,19 @@ groups:
   - name: collectmind-slo
     interval: 15s
     rules:
+      # Severity tier convention (Phase 5 standardization):
+      # - severity: critical  -> SLO breach; pages immediately.
+      # - severity: page      -> warning-tier; pre-breach indicator, paged
+      #                          via Alertmanager grouping, suppressed when a
+      #                          critical alert for the same alertname+service
+      #                          is already firing (see alertmanager.yaml).
+      # Every Phase 5 alert is critical because each measures a binding SLO.
+
       - alert: E2ELatencyBreach
         expr: histogram_quantile(0.95, sum(rate(collectmind_time_to_deploy_seconds_bucket[5m])) by (le)) > 12
         for: 5m
         labels:
-          severity: page
+          severity: critical
           slo: SC-001
           service: collectmind
         annotations:
@@ -23,7 +31,7 @@ groups:
           ) < 0.999
         for: 10m
         labels:
-          severity: page
+          severity: critical
           slo: SC-002
           service: collectmind
         annotations:
@@ -31,7 +39,11 @@ groups:
           description: "Ratio of deployed policies to received findings dropped below the 99.9% SC-002 target."
           runbook_url: observability/runbooks/slo-002-success-rate.md
 
-      - alert: SoakErrorRateOrMemoryBreach
+      # SC-003 has two halves: error rate (this alert) and memory growth
+      # (SoakMemoryGrowthBreach below). Both fire only against a soak workload;
+      # the alert thresholds are scoped to a window that requires sustained
+      # load before they can fire.
+      - alert: SoakErrorRateBreach
         expr: |
           (
             sum(rate(collectmind_authentication_failure_total[10m]))
@@ -40,7 +52,7 @@ groups:
           ) > 0.001 * clamp_min(sum(rate(collectmind_diagnostic_findings_received_total[10m])), 1)
         for: 30m
         labels:
-          severity: page
+          severity: critical
           slo: SC-003
           service: collectmind
         annotations:
@@ -48,11 +60,34 @@ groups:
           description: "Soak-tier error rate (auth failures + dead-letter depth) exceeded the SC-003 0.1% ceiling for 30 minutes."
           runbook_url: observability/runbooks/slo-003-soak.md
 
+      - alert: SoakMemoryGrowthBreach
+        # SC-003's memory half: 24-hour delta of orchestration-api RSS
+        # exceeds 5% of the starting RSS. The nightly workflow snapshots
+        # RSS at run start and end and asserts the same ratio; this rule
+        # is the in-flight observability surface in addition to the
+        # post-run workflow assertion.
+        expr: |
+          (
+            (max_over_time(process_resident_memory_bytes{job="orchestration-api"}[1h])
+              - min_over_time(process_resident_memory_bytes{job="orchestration-api"}[24h]))
+              /
+            clamp_min(min_over_time(process_resident_memory_bytes{job="orchestration-api"}[24h]), 1)
+          ) > 0.05
+        for: 1h
+        labels:
+          severity: critical
+          slo: SC-003
+          service: collectmind
+        annotations:
+          summary: "SC-003 breach: orchestration-api RSS growth > 5% over 24h"
+          description: "Resident memory of the orchestration-api process grew more than 5 percent over the rolling 24-hour window, breaching the SC-003 soak budget."
+          runbook_url: observability/runbooks/slo-003-soak.md
+
       - alert: QueryLatencyBreach
         expr: histogram_quantile(0.95, sum(rate(collectmind_query_request_latency_seconds_bucket[5m])) by (le)) > 0.2
         for: 5m
         labels:
-          severity: page
+          severity: critical
           slo: SC-004
           service: collectmind
         annotations:
@@ -69,7 +104,7 @@ groups:
           ) > 0.1
         for: 5m
         labels:
-          severity: page
+          severity: critical
           slo: SC-005
           service: collectmind
         annotations:
@@ -78,22 +113,33 @@ groups:
           runbook_url: observability/runbooks/slo-005-recovery.md
 
       - alert: DashboardLagBreach
-        expr: (time() - max(timestamp(collectmind_diagnostic_findings_received_total))) > 10
+        # Phase 5 replacement for the Phase 4 timestamp()-based predicate.
+        # That predicate had an idle false-positive: under zero ingest the
+        # counter has no recent sample so the lag appears infinite. The
+        # replacement is anchored to scrape-target liveness (`up == 1`) and
+        # the scrape duration histogram, both of which only have signal
+        # while the target is reachable.
+        expr: |
+          (
+            max(up{job="orchestration-api"}) == 1
+            and
+            max(scrape_duration_seconds{job="orchestration-api"}) > 10
+          )
         for: 1m
         labels:
-          severity: page
+          severity: critical
           slo: SC-006
           service: collectmind
         annotations:
-          summary: "SC-006 breach: dashboard metric staleness > 10s"
-          description: "Operator dashboard staleness for collectmind_diagnostic_findings_received_total exceeded the SC-006 10-second ceiling."
+          summary: "SC-006 breach: dashboard scrape duration > 10s"
+          description: "Prometheus scrape duration for the orchestration-api target exceeded the SC-006 10-second ceiling; the dashboard will reflect stale data."
           runbook_url: observability/runbooks/slo-006-dashboard-lag.md
 
       - alert: OutcomeWriteDelayBreach
         expr: histogram_quantile(0.95, sum(rate(collectmind_policy_outcome_write_delay_seconds_bucket[15m])) by (le)) > 300
         for: 5m
         labels:
-          severity: page
+          severity: critical
           slo: SC-010
           service: collectmind
         annotations:
@@ -105,7 +151,7 @@ groups:
         expr: avg_over_time(up{job="orchestration-api"}[10m]) < 0.999
         for: 5m
         labels:
-          severity: page
+          severity: critical
           slo: SC-012
           service: collectmind
         annotations:

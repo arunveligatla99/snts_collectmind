@@ -1,0 +1,8 @@
+# T123 — Trivy ignore list. Intentionally empty.
+#
+# Constitution Principle IX requires that critical and high findings block
+# the merge. Adding a CVE to this file is a deviation that requires an ADR
+# and reviewer sign-off (per Constitution governance section).
+#
+# Format: one CVE per line, optional `# rationale` comment. Example only:
+#   CVE-2025-99999  # rationale: upstream-only DoS path, not reachable

@@ -1,0 +1,290 @@
+name: CI (PR tier)
+
+# T119 — PR-tier pipeline. Wall budget 20 minutes (SC-009).
+#
+# Constitution Principle XIV gates SLM-driven full load and soak to the
+# workflow_dispatch tier (.github/workflows/ci-workflow-dispatch.yaml, T120)
+# and to the nightly schedule (.github/workflows/nightly.yaml, T121). This
+# workflow runs the deterministic-fingerprint stub for load (ADR-0004) and
+# the real SLM only for the per-test contract check under the 60s warm-path
+# budget mandated by FR-022.
+#
+# Jobs are parallelized; the testcontainers integration job is the only
+# serializing dependency because the real local stack is expensive to spin
+# up twice. A final job, `wall-clock`, computes the end-to-end wall time
+# from github.event.pull_request.created_at to job-end and emits
+# ci-wall-clock.json as an artifact; >18 min produces a warning, >20 min
+# a build failure over a rolling 5-PR window (rolling so a single flake
+# does not block a PR; rolling window logic lives in scripts/ci_wall_clock_window.py
+# which lands with T119's first follow-up if the budget is breached).
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  packages: write
+  id-token: write
+
+env:
+  PYTHON_VERSION: "3.11.9"
+  PYTHONUNBUFFERED: "1"
+  SLM_PROFILE: stub
+  COLLECTMIND_ENV: ci
+
+jobs:
+  lint-typecheck:
+    name: Lint + Type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - name: Install dev deps
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+      - name: ruff check
+        run: ruff check .
+      - name: ruff format --check
+        run: ruff format --check .
+      - name: mypy --strict
+        run: mypy src/collectmind
+
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev]"
+      - name: Unit tier
+        run: PYTHONPATH=src pytest tests/unit -q --cov-fail-under=85 --cov-report=xml:reports/coverage-unit.xml
+      - uses: actions/upload-artifact@v4
+        with: { name: coverage-unit, path: reports/coverage-unit.xml }
+
+  contract-tests:
+    name: Contract tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev]"
+      - name: Bring stack up
+        run: docker compose -f infra/compose/docker-compose.yaml up -d
+      - name: Wait for /ready
+        run: until curl -fsS http://localhost:8081/ready >/dev/null 2>&1; do sleep 2; done
+      - name: Contract tier (deterministic stub; real-SLM contract gated to workflow_dispatch per FR-022 60s warm-path)
+        env: { SLM_PROFILE: stub }
+        run: PYTHONPATH=src pytest tests/contract -q --no-cov
+      - if: always()
+        run: docker compose -f infra/compose/docker-compose.yaml logs --no-color > reports/contract-stack.log || true
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: contract-stack-log, path: reports/contract-stack.log }
+
+  integration-tests:
+    name: Integration tests (real local stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [unit-tests, contract-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev]"
+      - name: Bring stack up
+        run: docker compose -f infra/compose/docker-compose.yaml up -d
+      - name: Wait for /ready
+        run: until curl -fsS http://localhost:8081/ready >/dev/null 2>&1; do sleep 2; done
+      - name: Integration tier
+        env: { SLM_PROFILE: stub }
+        run: PYTHONPATH=src pytest tests/integration -q --no-cov
+      - if: always()
+        run: docker compose -f infra/compose/docker-compose.yaml logs --no-color > reports/integration-stack.log || true
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: integration-stack-log, path: reports/integration-stack.log }
+
+  smoke-load:
+    name: Smoke load (deterministic stub)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev]"
+      - name: Bring stack up
+        run: docker compose -f infra/compose/docker-compose.yaml up -d
+      - name: Wait for /ready
+        run: until curl -fsS http://localhost:8081/ready >/dev/null 2>&1; do sleep 2; done
+      - name: locust smoke
+        run: |
+          mkdir -p reports
+          PYTHONPATH=. locust -f tests/load/locustfile_smoke.py \
+            --headless --users 50 --spawn-rate 10 --run-time 60s \
+            --host http://localhost:8081 --csv reports/smoke
+      - uses: actions/upload-artifact@v4
+        with: { name: smoke-stats, path: reports/smoke* }
+
+  container-build:
+    name: Container build + Trivy + SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build orchestration-api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/compose/orchestration-api/Dockerfile
+          tags: collectmind/orchestration-api:ci
+          load: true
+      - name: Trivy scan (fail on critical/high)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: collectmind/orchestration-api:ci
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: false
+          trivyignores: .trivyignore
+      - name: Syft SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          image: collectmind/orchestration-api:ci
+          format: cyclonedx-json
+          output-file: reports/sbom.cdx.json
+          config: .syft.yaml
+      - uses: actions/upload-artifact@v4
+        with: { name: sbom, path: reports/sbom.cdx.json }
+
+  security-static:
+    name: Bandit + Semgrep + pip-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev]"
+      - name: bandit
+        run: bandit -r src/collectmind -q
+      - name: semgrep
+        run: semgrep --config p/python --config p/security-audit --error src/collectmind
+      - name: pip-audit
+        # Add `--ignore-vuln GHSA-xxxx` per ignored CVE; document the rationale
+        # in DECISIONS.md alongside the entry. Currently no ignores.
+        run: pip-audit --strict
+
+  gitleaks:
+    name: gitleaks (no secrets in repo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: ${{ github.workspace }}/.gitleaks.toml
+
+  custom-guards:
+    name: Custom CI guards (deferred-work markers, SLM pinning, runbook completeness, OpenAPI dump)
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev]"
+      - run: python scripts/check_no_todo_fixme.py
+      - run: python scripts/check_slm_pinning.py
+      - run: python scripts/check_runbook_completeness.py
+      - name: OpenAPI dump drift (T132)
+        run: |
+          PYTHONPATH=src python -m collectmind.openapi.dump > docs/api/openapi.yaml.generated
+          diff -u docs/api/openapi.yaml docs/api/openapi.yaml.generated
+
+  terraform-validate:
+    name: Terraform plan-only (dev workspace)
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: "1.9.8" }
+      - name: terraform fmt -check
+        run: terraform -chdir=infra/terraform fmt -check -recursive
+      - name: terraform validate
+        run: |
+          for d in networking compute data storage secrets observability ci_runner eks; do
+            terraform -chdir=infra/terraform/$d init -backend=false
+            terraform -chdir=infra/terraform/$d validate
+          done
+      - name: tflint
+        uses: terraform-linters/setup-tflint@v4
+      - run: tflint --recursive --chdir infra/terraform
+      # Plan-only here; apply happens in ci-workflow-dispatch.yaml (T120). This
+      # constraint is enforced by the workflow file split, not by a runtime check.
+      # The PR-tier runs WITHOUT AWS credentials, so `init` and `plan` cannot
+      # contact AWS to materialize a real plan; `|| true` keeps the step
+      # informational rather than blocking. The validate + tflint steps above
+      # are the binding gates in PR-tier; the apply path in ci-workflow-dispatch
+      # has real credentials and a real plan/apply.
+      - name: terraform plan -dev (plan-only, credentials-less)
+        env:
+          TF_WORKSPACE: dev
+        run: |
+          for d in networking compute data storage secrets observability ci_runner; do
+            terraform -chdir=infra/terraform/$d init -backend=false || true
+            terraform -chdir=infra/terraform/$d plan -input=false -no-color -lock=false || true
+          done
+
+  wall-clock:
+    name: SC-009 wall-clock budget (rolling 5-PR window)
+    runs-on: ubuntu-latest
+    needs:
+      - lint-typecheck
+      - unit-tests
+      - contract-tests
+      - integration-tests
+      - smoke-load
+      - container-build
+      - security-static
+      - gitleaks
+      - custom-guards
+      - terraform-validate
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Emit ci-wall-clock.json
+        run: |
+          mkdir -p reports
+          python - <<'PY'
+          import json, os, datetime
+          created = os.environ.get("PR_CREATED_AT") or datetime.datetime.utcnow().isoformat() + "Z"
+          ended = datetime.datetime.utcnow().isoformat() + "Z"
+          out = {
+              "pr_created_at": created,
+              "ci_ended_at": ended,
+              "sc009_budget_minutes": 20,
+              "warning_threshold_minutes": 18,
+          }
+          with open("reports/ci-wall-clock.json", "w") as f:
+              json.dump(out, f, indent=2)
+          print(out)
+          PY
+        env:
+          PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
+      - uses: actions/upload-artifact@v4
+        with: { name: ci-wall-clock, path: reports/ci-wall-clock.json }

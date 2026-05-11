@@ -1,8 +1,10 @@
 # GPU profile: vLLM v0.20.1 with the Qwen2.5-7B-Instruct revision pinned by ADR-0002.
 # This Dockerfile is wired in by Phase 3 US1 (T075, T017). Phase 2 foundation does not build it.
 
-# Pinned by digest in production. The tag form is shown for readability; CI substitutes the digest.
-FROM vllm/vllm-openai:v0.20.1
+# vLLM v0.20.1 pinned by manifest-list digest per Constitution Principle XIV
+# and ADR-0002. The tag is kept for readability; the digest is the contract.
+# Resolved 2026-05-11 via `docker buildx imagetools inspect vllm/vllm-openai:v0.20.1`.
+FROM vllm/vllm-openai:v0.20.1@sha256:9eff9734a30b6713a8566217d36f8277630fd2d31cec7f0a0292835901a23aa4
 
 ENV PYTHONUNBUFFERED=1 \
     HF_HOME=/root/.cache/huggingface \

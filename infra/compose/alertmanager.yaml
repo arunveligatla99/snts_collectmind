@@ -1,16 +1,32 @@
 global:
   resolve_timeout: 1m
 
+# Severity-tier routing (Phase 5 standardization):
+# - critical -> pages immediately (group_wait 0s).
+# - page     -> warning-tier; grouped with longer wait so a transient signal
+#               doesn't fan out unless it persists. Suppressed by an inhibit
+#               rule when a critical alert for the same alertname+service is
+#               already firing.
+# Both tiers terminate at the local webhook receiver in dev; in cloud
+# (configured via the observability Terraform module) they fan out to
+# PagerDuty + Slack.
+
 route:
-  group_by: ["alertname"]
+  group_by: ["alertname", "service"]
   group_wait: 5s
   group_interval: 10s
   repeat_interval: 1h
   receiver: local-webhook
   routes:
     - matchers:
-        - service="collectmind"
+        - severity="critical"
       receiver: local-webhook
+      group_wait: 0s
+      repeat_interval: 30m
+    - matchers:
+        - severity="page"
+      receiver: local-webhook
+      group_wait: 30s
 
 receivers:
   - name: local-webhook
@@ -19,6 +35,9 @@ receivers:
         send_resolved: true
 
 inhibit_rules:
+  # When a critical SLO-breach alert is firing for a given (alertname, service)
+  # tuple, suppress any warning-tier (severity=page) alert for the same tuple.
+  # Prevents page duplication when a warning tier promotes into a critical.
   - source_matchers:
       - severity="critical"
     target_matchers:

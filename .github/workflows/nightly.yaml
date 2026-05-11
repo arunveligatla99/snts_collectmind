@@ -1,0 +1,88 @@
+name: Nightly (24-hour soak)
+
+# T121 — 24-hour soak on the self-hosted GPU runner.
+#
+# Asserts SC-003: at 50% of SC-002's peak rate, the system runs for at least
+# 24 hours with no resident-memory growth above 5 percent and an error rate
+# at most 0.1 percent. The error-rate assertion is enforced inside the
+# locust process (tests/load/locustfile_soak.py); the memory-growth
+# assertion is enforced HERE by snapshotting
+# `process_resident_memory_bytes{job="orchestration-api"}` at run start, again
+# at run end, and asserting (end - start) / start <= 0.05.
+#
+# This is also where the Phase 4 MEDIUM "SoakErrorRateOrMemoryBreach memory
+# half" lands: the memory snapshot + the assertion close the loop on the
+# rules.yaml alert that previously covered only the error half.
+
+on:
+  schedule:
+    # 02:00 UTC daily.
+    - cron: "0 2 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PYTHON_VERSION: "3.11.9"
+  SLM_PROFILE: vllm
+  COLLECTMIND_ENV: ci
+
+jobs:
+  soak:
+    name: 24h soak (SC-003)
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 1500  # ~25h, soak budget + margin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev,gpu]"
+
+      - name: Bring stack up with real SLM
+        run: docker compose -f infra/compose/docker-compose.yaml --profile default up -d
+      - name: Wait for /ready
+        run: until curl -fsS http://localhost:8081/ready >/dev/null 2>&1; do sleep 5; done
+
+      - name: Snapshot RSS at soak start
+        run: |
+          mkdir -p reports
+          curl -sS 'http://localhost:9090/api/v1/query?query=process_resident_memory_bytes{job="orchestration-api"}' \
+            > reports/rss-start.json
+          python -c "import json;d=json.load(open('reports/rss-start.json'));v=float(d['data']['result'][0]['value'][1]);print(v);open('reports/rss-start.value','w').write(str(v))"
+
+      - name: locust soak (500 users, 24h)
+        run: |
+          PYTHONPATH=. locust -f tests/load/locustfile_soak.py \
+            --headless --users 500 --spawn-rate 25 --run-time 24h \
+            --host http://localhost:8081 --csv reports/soak
+
+      - name: Snapshot RSS at soak end
+        if: always()
+        run: |
+          curl -sS 'http://localhost:9090/api/v1/query?query=process_resident_memory_bytes{job="orchestration-api"}' \
+            > reports/rss-end.json
+          python -c "import json;d=json.load(open('reports/rss-end.json'));v=float(d['data']['result'][0]['value'][1]);print(v);open('reports/rss-end.value','w').write(str(v))"
+
+      - name: Assert SC-003 memory growth <= 5%
+        if: always()
+        run: |
+          python - <<'PY'
+          import sys
+          start = float(open('reports/rss-start.value').read())
+          end = float(open('reports/rss-end.value').read())
+          if start <= 0:
+              print(f"start RSS {start} non-positive; cannot compute growth", file=sys.stderr)
+              sys.exit(1)
+          growth = (end - start) / start
+          print(f"RSS start={start} end={end} growth={growth:.4f}")
+          if growth > 0.05:
+              print(f"SC-003 breach: RSS growth {growth:.4f} > 0.05", file=sys.stderr)
+              sys.exit(1)
+          print(f"SC-003 RSS growth check PASSED ({growth:.4f} <= 0.05).")
+          PY
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: soak-reports, path: reports/ }
