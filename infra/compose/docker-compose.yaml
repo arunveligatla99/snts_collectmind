@@ -75,8 +75,49 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ../../observability/prometheus:/etc/prometheus/rules:ro
+    depends_on:
+      alertmanager:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:9090/-/healthy >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: collectmind-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yaml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --web.listen-address=:9093
+    depends_on:
+      local-webhook:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:9093/-/ready >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  local-webhook:
+    image: python:3.11-slim
+    container_name: collectmind-local-webhook
+    ports:
+      - "9099:9099"
+    volumes:
+      - ../../scripts/local_webhook.py:/app/local_webhook.py:ro
+    working_dir: /app
+    command: ["python", "/app/local_webhook.py"]
+    environment:
+      LOCAL_WEBHOOK_HOST: "0.0.0.0"
+      LOCAL_WEBHOOK_PORT: "9099"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9099/healthz')\""]
       interval: 10s
       timeout: 5s
       retries: 30

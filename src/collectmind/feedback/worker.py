@@ -12,7 +12,7 @@ import ulid
 from collectmind.feedback.evaluator import BrakeWearHypothesisRule, HypothesisOutcome
 from collectmind.feedback.scheduler import LogicalTimeScheduler
 from collectmind.observability.logging import get_logger
-from collectmind.observability.metrics import policy_outcome_total
+from collectmind.observability.metrics import policy_outcome_total, policy_outcome_write_delay_seconds
 from collectmind.registry.audit import AuditEventWriter
 from collectmind.registry.db import Database
 from collectmind.registry.repository import DeploymentRepository, OutcomeRepository, PolicyRepository
@@ -94,6 +94,13 @@ class FeedbackWorker:
         await self._outcome_repo.insert(tenant_id, outcome_record)
         await self._deployment_repo.mark_expired(deployment_id)
         policy_outcome_total.labels(tenant_id=tenant_id, state=outcome.hypothesis_state).inc()
+
+        # SC-010: wall-clock delta from collection-window close to outcome row written.
+        expires_at = deployment.get("expires_at")
+        if isinstance(expires_at, datetime):
+            delay = (datetime.now(tz=timezone.utc) - expires_at).total_seconds()
+            if delay >= 0:
+                policy_outcome_write_delay_seconds.labels(tenant_id=tenant_id).observe(delay)
 
         await self._audit_writer.write(
             tenant_id=tenant_id,

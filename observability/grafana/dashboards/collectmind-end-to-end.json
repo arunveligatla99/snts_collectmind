@@ -2,10 +2,10 @@
   "title": "CollectMind End-to-End",
   "uid": "collectmind-e2e",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "tags": ["collectmind", "feature-001"],
   "timezone": "browser",
-  "refresh": "10s",
+  "refresh": "5s",
   "time": { "from": "now-1h", "to": "now" },
   "panels": [
     {
@@ -14,22 +14,23 @@
       "title": "Ingest rate (events/s)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
-      "targets": [{ "expr": "sum(rate(diagnostic_findings_received_total[1m]))", "refId": "A" }]
+      "targets": [
+        { "expr": "sum(rate(collectmind_diagnostic_findings_received_total[1m]))", "refId": "A" }
+      ]
     },
     {
       "id": 2,
       "type": "timeseries",
       "title": "Generation funnel",
+      "description": "received -> generated -> validated -> deployed -> confirmed/ruled_out/no_data",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "x": 6, "y": 0, "w": 12, "h": 8 },
       "targets": [
-        { "expr": "sum(rate(diagnostic_findings_received_total[1m]))", "refId": "received", "legendFormat": "received" },
-        { "expr": "sum(rate(policy_generated_total[1m]))", "refId": "generated", "legendFormat": "generated" },
-        { "expr": "sum(rate(policy_validated_total[1m]))", "refId": "validated", "legendFormat": "validated" },
-        { "expr": "sum(rate(policy_deployed_total[1m]))", "refId": "deployed", "legendFormat": "deployed" },
-        { "expr": "sum(rate(policy_outcome_confirmed_total[1m]))", "refId": "confirmed", "legendFormat": "confirmed" },
-        { "expr": "sum(rate(policy_outcome_ruled_out_total[1m]))", "refId": "ruled_out", "legendFormat": "ruled_out" },
-        { "expr": "sum(rate(policy_outcome_no_data_total[1m]))", "refId": "no_data", "legendFormat": "no_data" }
+        { "expr": "sum(rate(collectmind_diagnostic_findings_received_total[1m]))", "refId": "received", "legendFormat": "received" },
+        { "expr": "sum(rate(collectmind_policy_generated_total[1m]))", "refId": "generated", "legendFormat": "generated" },
+        { "expr": "sum(rate(collectmind_policy_validated_total[1m]))", "refId": "validated", "legendFormat": "validated" },
+        { "expr": "sum(rate(collectmind_policy_deployed_total[1m]))", "refId": "deployed", "legendFormat": "deployed" },
+        { "expr": "sum by (state) (rate(collectmind_policy_outcome_total[1m]))", "refId": "outcome", "legendFormat": "outcome:{{state}}" }
       ]
     },
     {
@@ -38,18 +39,21 @@
       "title": "Validation pass rate",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "x": 0, "y": 4, "w": 6, "h": 4 },
-      "targets": [{ "expr": "sum(rate(policy_validated_total[5m])) / clamp_min(sum(rate(policy_generated_total[5m])), 1)", "refId": "A" }]
+      "targets": [
+        { "expr": "sum(rate(collectmind_policy_validated_total[5m])) / clamp_min(sum(rate(collectmind_policy_generated_total[5m])), 1)", "refId": "A" }
+      ]
     },
     {
       "id": 4,
-      "type": "histogram",
+      "type": "timeseries",
       "title": "Time-to-deploy (p50/p95/p99)",
+      "description": "SC-001 quantile surface",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
       "targets": [
-        { "expr": "histogram_quantile(0.50, sum(rate(time_to_deploy_seconds_bucket[5m])) by (le))", "refId": "p50", "legendFormat": "p50" },
-        { "expr": "histogram_quantile(0.95, sum(rate(time_to_deploy_seconds_bucket[5m])) by (le))", "refId": "p95", "legendFormat": "p95" },
-        { "expr": "histogram_quantile(0.99, sum(rate(time_to_deploy_seconds_bucket[5m])) by (le))", "refId": "p99", "legendFormat": "p99" }
+        { "expr": "histogram_quantile(0.50, sum(rate(collectmind_time_to_deploy_seconds_bucket[5m])) by (le))", "refId": "p50", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(collectmind_time_to_deploy_seconds_bucket[5m])) by (le))", "refId": "p95", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(collectmind_time_to_deploy_seconds_bucket[5m])) by (le))", "refId": "p99", "legendFormat": "p99" }
       ]
     },
     {
@@ -58,7 +62,9 @@
       "title": "Hypothesis confirmation rate",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "x": 12, "y": 8, "w": 6, "h": 4 },
-      "targets": [{ "expr": "sum(rate(policy_outcome_confirmed_total[15m])) / clamp_min(sum(rate(policy_outcome_total[15m])), 1)", "refId": "A" }]
+      "targets": [
+        { "expr": "sum(rate(collectmind_policy_outcome_total{state=\"confirmed\"}[15m])) / clamp_min(sum(rate(collectmind_policy_outcome_total[15m])), 1)", "refId": "A" }
+      ]
     },
     {
       "id": 6,
@@ -66,39 +72,90 @@
       "title": "Dead-letter count",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "x": 18, "y": 8, "w": 6, "h": 4 },
-      "targets": [{ "expr": "sum(dead_letter_queue_depth)", "refId": "A" }]
+      "targets": [
+        { "expr": "sum(collectmind_dead_letter_queue_depth)", "refId": "A" }
+      ]
     },
     {
       "id": 7,
       "type": "stat",
-      "title": "Authentication-failure rate",
+      "title": "Retry rate",
+      "description": "validator-failure retries per second (Principle XII bounded retry)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 4 },
-      "targets": [{ "expr": "sum(rate(authentication_failure_total[5m]))", "refId": "A" }]
+      "gridPos": { "x": 12, "y": 4, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "sum(rate(collectmind_policy_retry_total[5m]))", "refId": "A" }
+      ]
     },
     {
       "id": 8,
       "type": "stat",
-      "title": "SLM generation latency p95",
+      "title": "Authentication-failure rate",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 4 },
-      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(slm_generation_latency_seconds_bucket[5m])) by (le))", "refId": "A" }]
+      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "sum(rate(collectmind_authentication_failure_total[5m]))", "refId": "A" }
+      ]
     },
     {
       "id": 9,
       "type": "stat",
-      "title": "SLM constraint-violation rate",
+      "title": "SLM generation latency p95",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "x": 12, "y": 16, "w": 6, "h": 4 },
-      "targets": [{ "expr": "sum(rate(slm_constraint_violation_total[5m]))", "refId": "A" }]
+      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(collectmind_slm_generation_latency_seconds_bucket[5m])) by (le))", "refId": "A" }
+      ]
     },
     {
       "id": 10,
       "type": "stat",
+      "title": "SLM constraint-violation rate",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 12, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "sum(rate(collectmind_slm_constraint_violation_total[5m]))", "refId": "A" }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
       "title": "Active SLM weight SHA",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "x": 18, "y": 16, "w": 6, "h": 4 },
-      "targets": [{ "expr": "sum by (sha) (slm_weight_sha_active) > 0", "refId": "A" }]
+      "targets": [
+        { "expr": "sum by (sha) (collectmind_slm_weight_sha_active)", "refId": "A", "legendFormat": "{{sha}}" }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Active SLM runtime image digest",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "sum by (digest, runtime) (collectmind_slm_runtime_image_digest_active)", "refId": "A", "legendFormat": "{{runtime}}@{{digest}}" }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Query latency p95 (SC-004)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum by (route, le) (rate(collectmind_query_request_latency_seconds_bucket[5m])))", "refId": "p95", "legendFormat": "{{route}}" }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Outcome write delay p95 (SC-010)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 12, "y": 20, "w": 6, "h": 6 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(collectmind_policy_outcome_write_delay_seconds_bucket[15m])) by (le))", "refId": "A" }
+      ]
     }
   ]
 }

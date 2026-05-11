@@ -39,6 +39,11 @@ policy_outcome_total = Counter(
     "Outcome records written by the feedback worker.",
     labelnames=("tenant_id", "state"),
 )
+policy_retry_total = Counter(
+    f"{REGISTRY_NAMESPACE}_policy_retry_total",
+    "Validator-failure retries routed back to the Policy Generator (Principle XII).",
+    labelnames=("tenant_id",),
+)
 dead_letter_queue_depth = Gauge(
     f"{REGISTRY_NAMESPACE}_dead_letter_queue_depth",
     "Current depth of the dead-letter queue.",
@@ -54,6 +59,26 @@ time_to_deploy_seconds = Histogram(
     "End-to-end latency from diagnostic event accepted to policy deployed.",
     buckets=(0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 20.0, 30.0, 60.0, 120.0),
     labelnames=("tenant_id",),
+)
+
+
+# SC-004 query latency, SC-010 outcome write delay, SC-012 availability counters.
+query_request_latency_seconds = Histogram(
+    f"{REGISTRY_NAMESPACE}_query_request_latency_seconds",
+    "Latency of the query API per route (SC-004).",
+    buckets=(0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0),
+    labelnames=("route", "status_class"),
+)
+policy_outcome_write_delay_seconds = Histogram(
+    f"{REGISTRY_NAMESPACE}_policy_outcome_write_delay_seconds",
+    "Wall-clock delta from policy collection-window close to outcome row written (SC-010).",
+    buckets=(1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.0),
+    labelnames=("tenant_id",),
+)
+http_request_total = Counter(
+    f"{REGISTRY_NAMESPACE}_http_request_total",
+    "All HTTP requests served by the orchestration and query APIs (SC-012).",
+    labelnames=("route", "status_class"),
 )
 
 

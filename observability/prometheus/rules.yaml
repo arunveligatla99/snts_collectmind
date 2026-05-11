@@ -1,0 +1,114 @@
+groups:
+  - name: collectmind-slo
+    interval: 15s
+    rules:
+      - alert: E2ELatencyBreach
+        expr: histogram_quantile(0.95, sum(rate(collectmind_time_to_deploy_seconds_bucket[5m])) by (le)) > 12
+        for: 5m
+        labels:
+          severity: page
+          slo: SC-001
+          service: collectmind
+        annotations:
+          summary: "SC-001 breach: time-to-deploy p95 > 12s"
+          description: "End-to-end policy-deployed latency p95 exceeded the 12-second SC-001 ceiling for 5 minutes."
+          runbook_url: observability/runbooks/slo-001-latency.md
+
+      - alert: SustainedIngestSuccessRateBreach
+        expr: |
+          (
+            sum(rate(collectmind_policy_deployed_total[10m]))
+              /
+            clamp_min(sum(rate(collectmind_diagnostic_findings_received_total[10m])), 1)
+          ) < 0.999
+        for: 10m
+        labels:
+          severity: page
+          slo: SC-002
+          service: collectmind
+        annotations:
+          summary: "SC-002 breach: end-to-end success rate < 99.9% under sustained ingest"
+          description: "Ratio of deployed policies to received findings dropped below the 99.9% SC-002 target."
+          runbook_url: observability/runbooks/slo-002-success-rate.md
+
+      - alert: SoakErrorRateOrMemoryBreach
+        expr: |
+          (
+            sum(rate(collectmind_authentication_failure_total[10m]))
+              +
+            sum(collectmind_dead_letter_queue_depth)
+          ) > 0.001 * clamp_min(sum(rate(collectmind_diagnostic_findings_received_total[10m])), 1)
+        for: 30m
+        labels:
+          severity: page
+          slo: SC-003
+          service: collectmind
+        annotations:
+          summary: "SC-003 breach: soak-tier error rate > 0.1%"
+          description: "Soak-tier error rate (auth failures + dead-letter depth) exceeded the SC-003 0.1% ceiling for 30 minutes."
+          runbook_url: observability/runbooks/slo-003-soak.md
+
+      - alert: QueryLatencyBreach
+        expr: histogram_quantile(0.95, sum(rate(collectmind_query_request_latency_seconds_bucket[5m])) by (le)) > 0.2
+        for: 5m
+        labels:
+          severity: page
+          slo: SC-004
+          service: collectmind
+        annotations:
+          summary: "SC-004 breach: query API p95 > 200ms"
+          description: "Operator query API p95 latency exceeded the 200ms SC-004 ceiling for 5 minutes."
+          runbook_url: observability/runbooks/slo-004-query-latency.md
+
+      - alert: RecoveryFromOutageBreach
+        expr: |
+          (
+            sum(rate(collectmind_diagnostic_findings_received_total[10m]))
+              -
+            sum(rate(collectmind_policy_outcome_total[10m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: page
+          slo: SC-005
+          service: collectmind
+        annotations:
+          summary: "SC-005 breach: ingest-to-outcome backlog persisting > 5 minutes"
+          description: "The system has not drained its outcome backlog within 5 minutes of recovery; FR-022a violated."
+          runbook_url: observability/runbooks/slo-005-recovery.md
+
+      - alert: DashboardLagBreach
+        expr: (time() - max(timestamp(collectmind_diagnostic_findings_received_total))) > 10
+        for: 1m
+        labels:
+          severity: page
+          slo: SC-006
+          service: collectmind
+        annotations:
+          summary: "SC-006 breach: dashboard metric staleness > 10s"
+          description: "Operator dashboard staleness for collectmind_diagnostic_findings_received_total exceeded the SC-006 10-second ceiling."
+          runbook_url: observability/runbooks/slo-006-dashboard-lag.md
+
+      - alert: OutcomeWriteDelayBreach
+        expr: histogram_quantile(0.95, sum(rate(collectmind_policy_outcome_write_delay_seconds_bucket[15m])) by (le)) > 300
+        for: 5m
+        labels:
+          severity: page
+          slo: SC-010
+          service: collectmind
+        annotations:
+          summary: "SC-010 breach: outcome write delay p95 > 5 minutes"
+          description: "Wall-clock delay between collection-window close and outcome row written exceeded the SC-010 5-minute ceiling."
+          runbook_url: observability/runbooks/slo-010-outcome-write-delay.md
+
+      - alert: AvailabilityBreach
+        expr: avg_over_time(up{job="orchestration-api"}[10m]) < 0.999
+        for: 5m
+        labels:
+          severity: page
+          slo: SC-012
+          service: collectmind
+        annotations:
+          summary: "SC-012 breach: orchestration-api availability < 99.9%"
+          description: "Rolling 10-minute availability of the orchestration-api scrape target dropped below the SC-012 99.9% monthly target."
+          runbook_url: observability/runbooks/slo-012-availability.md

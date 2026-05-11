@@ -9,12 +9,15 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from collectmind.auth.dependencies import get_settings
 from collectmind.config import Settings
@@ -35,7 +38,11 @@ from collectmind.ingest.idempotency import IdempotencyChecker
 from collectmind.ingest.schema_version import SchemaVersionChecker
 from collectmind.kafka.producer import Producer
 from collectmind.observability.logging import configure_logging, get_logger
-from collectmind.observability.metrics import render_prometheus
+from collectmind.observability.metrics import (
+    http_request_total,
+    query_request_latency_seconds,
+    render_prometheus,
+)
 from collectmind.observability.otel import init_otel
 from collectmind.query.api import router as query_router
 from collectmind.redis.client import HotStore
@@ -182,7 +189,61 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         await db.close()
 
 
+_ID_SEGMENT = re.compile(r"^[A-Za-z0-9_\-.]{1,256}$")
+_QUERY_ROUTE_PREFIXES: tuple[str, ...] = (
+    "GET /api/v1/policies",
+    "GET /api/v1/vehicle-groups",
+    "GET /api/v1/findings/:id/outcome",
+    "GET /api/v1/audit",
+    "GET /api/v1/erasure-requests",
+)
+
+
+def _normalize_route(method: str, path: str) -> str:
+    """Collapse path parameters to `:id` so route cardinality stays bounded.
+
+    Returns "<METHOD> <template>" — e.g. ``GET /api/v1/policies/:id/versions``.
+    Unknown paths fall through to ``<METHOD> other``."""
+    segments = [s for s in path.split("/") if s]
+    out: list[str] = []
+    for seg in segments:
+        if _ID_SEGMENT.match(seg) and any(c.isdigit() or c in "_-." for c in seg):
+            # Heuristic: looks like a path-parameter identifier (has a digit or
+            # delimiter, not a bare static segment).
+            out.append(":id")
+        else:
+            out.append(seg)
+    template = "/" + "/".join(out) if out else "/"
+    return f"{method.upper()} {template}"
+
+
+def _is_query_route(route: str) -> bool:
+    return any(route.startswith(prefix) for prefix in _QUERY_ROUTE_PREFIXES)
+
+
+class _MetricsMiddleware(BaseHTTPMiddleware):
+    """Emits http_request_total and (for query routes) query_request_latency_seconds.
+
+    Wraps every HTTP request handled by the orchestration + query + erasure
+    routers. Per Constitution Principle V the surface is RED metrics for every
+    external interface; per SC-004 the query latency histogram is the
+    measurement vehicle for the p95<=200ms target.
+    """
+
+    async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+        start = time.monotonic()
+        response = await call_next(request)
+        elapsed = time.monotonic() - start
+        route = _normalize_route(request.method, request.url.path)
+        status_class = f"{response.status_code // 100}xx"
+        http_request_total.labels(route=route, status_class=status_class).inc()
+        if _is_query_route(route):
+            query_request_latency_seconds.labels(route=route, status_class=status_class).observe(elapsed)
+        return response
+
+
 app = FastAPI(title="CollectMind Orchestration API", version="0.1.0", lifespan=_lifespan)
+app.add_middleware(_MetricsMiddleware)
 app.include_router(ingest_router)
 app.include_router(query_router)
 app.include_router(erasure_router)

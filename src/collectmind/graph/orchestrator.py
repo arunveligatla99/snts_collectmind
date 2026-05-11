@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Literal
 
 from collectmind.graph.session import PolicyGenerationSession
+from collectmind.observability.metrics import policy_retry_total
 
 
 RouteDecision = Literal["generate", "validate", "deploy", "retry", "dead_letter", "done"]
@@ -23,6 +24,7 @@ class Orchestrator:
         if session.retry_budget_exhausted():
             return "dead_letter"
         session.retry_count += 1
+        policy_retry_total.labels(tenant_id=session.tenant_id).inc()
         return "retry"
 
     def route_after_deploy(self, deploy_ok: bool) -> RouteDecision:

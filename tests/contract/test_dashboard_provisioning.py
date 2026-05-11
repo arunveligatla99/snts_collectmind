@@ -83,9 +83,14 @@ def _parse_refresh_to_seconds(raw: object) -> int:
 
 def _declared_metric_names() -> set[str]:
     """Return the set of fully qualified Prometheus metric names declared by
-    `src/collectmind/observability/metrics.py`. Includes histogram-derived
-    suffixes (`_bucket`, `_sum`, `_count`) and counter base names (with the
-    `_total` suffix Prometheus exposes)."""
+    `src/collectmind/observability/metrics.py`.
+
+    `prometheus_client` strips the `_total` suffix from Counter names at
+    registration time (so a Counter declared as ``foo_total`` exposes a series
+    named ``foo_total`` but has ``_name = "foo"`` on the instance). To keep the
+    contract robust to all three primitive kinds (Counter / Gauge / Histogram)
+    the set includes every derived suffix Prometheus may emit: ``_total``,
+    ``_created``, ``_bucket``, ``_sum``, ``_count``."""
     from collectmind.observability import metrics  # local import to avoid module-load coupling at collection
 
     declared: set[str] = set()
@@ -95,10 +100,8 @@ def _declared_metric_names() -> set[str]:
         if not isinstance(prom_name, str) or not prom_name.startswith("collectmind_"):
             continue
         declared.add(prom_name)
-        # Histograms expose `_bucket`, `_sum`, and `_count` derived series.
-        declared.add(f"{prom_name}_bucket")
-        declared.add(f"{prom_name}_sum")
-        declared.add(f"{prom_name}_count")
+        for suffix in ("_total", "_created", "_bucket", "_sum", "_count"):
+            declared.add(f"{prom_name}{suffix}")
     return declared
 
 
