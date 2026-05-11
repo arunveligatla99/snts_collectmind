@@ -38,7 +38,11 @@ def _mint_token() -> str:
     return response.json()["access_token"]
 
 
-schema = schemathesis.from_path(str(CONTRACT_PATH), base_url=QUERY_BASE_URL)
+schema = schemathesis.from_path(
+    str(CONTRACT_PATH),
+    base_url=f"{QUERY_BASE_URL}/api/v1",
+    force_schema_version="30",
+)
 
 
 @schema.parametrize()

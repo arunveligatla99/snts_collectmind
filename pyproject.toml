@@ -62,6 +62,9 @@ packages = ["src/collectmind"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "--strict-markers --strict-config --cov=src/collectmind --cov-report=term --cov-report=xml --cov-fail-under=85"
+markers = [
+  "integration: end-to-end tests that hit the real local stack",
+]
 
 [tool.coverage.run]
 branch = true

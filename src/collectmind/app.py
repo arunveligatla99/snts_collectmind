@@ -186,11 +186,13 @@ async def collectmind_error_handler(_: Request, exc: CollectMindError) -> JSONRe
 
 
 @app.get("/health", include_in_schema=False)
+@app.get("/api/v1/health", include_in_schema=False)
 async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
 @app.get("/ready", include_in_schema=False)
+@app.get("/api/v1/ready", include_in_schema=False)
 async def ready(request: Request) -> JSONResponse:
     db: Database = request.app.state.db
     redis: HotStore = request.app.state.redis

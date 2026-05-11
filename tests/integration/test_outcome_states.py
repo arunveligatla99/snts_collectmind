@@ -54,7 +54,7 @@ def _publish_with_simulator_directive(directive: str, finding_id: str, token: st
             "anomaly_type": "brake_wear_early_stage",
             "hypothesis_class": "brake_wear",
             "hypothesis_statement": "rotor temperature excursion correlation",
-            "candidate_signals": ["Vehicle.Chassis.Brake.PadWear"],
+            "candidate_signals": ["Vehicle.Chassis.Axle.Row1.Wheel.Left.Brake.PadWear"],
             "vehicle_scope": ["VIN-1"],
             "upstream_confidence": 0.78,
         },
@@ -93,7 +93,7 @@ def _wait_for_outcome(finding_id: str, headers: dict[str, str]) -> dict:
 )
 def test_outcome_state_per_directive(directive: str, expected: str) -> None:
     require_local_stack()
-    require_slm()
+    # require_slm() removed: dev_default profile produces deterministic policy without an SLM container
     token = _mint()
     headers = {"Authorization": f"Bearer {token}"}
     finding_id = f"F-{directive}-{uuid.uuid4().hex[:8]}"

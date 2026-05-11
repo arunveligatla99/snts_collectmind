@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 
 
-_SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+_SEMVER = re.compile(r"^([0-9]+)\.([0-9]+)\.([0-9]+)$")
 
 
 @dataclass(frozen=True)

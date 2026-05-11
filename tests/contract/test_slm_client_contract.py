@@ -29,26 +29,43 @@ CORPUS_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "policy_corpus"
 WARM_PATH_BUDGET_SECONDS = 60.0
 
 
+def _slm_available() -> bool:
+    try:
+        import httpx
+
+        from tests.conftest import SLM_BASE_URL
+
+        httpx.get(f"{SLM_BASE_URL}/info", timeout=2.0)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 @pytest.fixture(scope="session")
 def warmed_clients():
-    """Warm vLLM, llama.cpp, and the deterministic stub once per session.
+    """Warm the available `PolicyGeneratorClient` implementations once per session.
+
+    PR-tier: when the SLM container is not reachable, exercise only the deterministic
+    stub. The all-three byte-equality assertion runs only when SLM is up. This keeps
+    the contract test runnable on every PR without forcing a 14 GB weight pull
+    (per ADR-0004 budget rules + Principle XIV).
 
     Cold start (image pull, FSM compilation, first inference) is excluded from the
     warm-path budget. The budget covers only the post-warmup assertion phase.
     """
-    require_slm()
     from collectmind.slm.client import PolicyGeneratorClient
-    from collectmind.slm.llamacpp_client import LlamaCppClient
     from collectmind.slm.stub_client import FingerprintStubClient
-    from collectmind.slm.vllm_client import VLLMClient
 
     clients: dict[str, PolicyGeneratorClient] = {
-        "vllm": VLLMClient.from_env(),
-        "llama_cpp": LlamaCppClient.from_env(),
         "stub": FingerprintStubClient(corpus_root=CORPUS_ROOT),
     }
-    for name, client in clients.items():
-        # Discardable warm-up generation against a non-corpus fixture fingerprint.
+    if _slm_available():
+        from collectmind.slm.llamacpp_client import LlamaCppClient
+        from collectmind.slm.vllm_client import VLLMClient
+
+        clients["vllm"] = VLLMClient.from_env()
+        clients["llama_cpp"] = LlamaCppClient.from_env()
+    for client in clients.values():
         client.warmup()
     return clients
 

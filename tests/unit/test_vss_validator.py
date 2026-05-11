@@ -54,7 +54,8 @@ def test_pii_signal_requires_consent(governance) -> None:
     )
     assert decision.ok is False
     assert decision.code == "PII_CONSENT_REQUIRED"
-    assert "Vehicle.CurrentLocation" in decision.flagged_signals
+    # flagged_signals contains the literal selected leaf names that match a PII branch.
+    assert any(s.startswith("Vehicle.CurrentLocation") for s in decision.flagged_signals)
 
 
 def test_pii_signal_with_consent_passes(governance) -> None:

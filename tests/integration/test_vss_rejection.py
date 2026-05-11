@@ -45,7 +45,7 @@ def _mint() -> str:
 def test_vss_invalid_signal_in_finding_rejected_with_structured_error() -> None:
     """An inbound finding that references a non-VSS signal must be rejected at the validator."""
     require_local_stack()
-    require_slm()
+    # require_slm() removed: dev_default profile produces deterministic policy without an SLM container
     token = _mint()
     headers = {"Authorization": f"Bearer {token}"}
     finding_id = f"F-vss-{uuid.uuid4().hex[:8]}"

@@ -29,9 +29,10 @@ _RUNTIME_INFO = RuntimeInfo(
 )
 
 _DEFAULT_BRAKE_SIGNALS = [
-    {"vss_name": "Vehicle.Chassis.Brake.PadWear", "sample_rate_hz": 1.0, "priority": 5},
+    {"vss_name": "Vehicle.Chassis.Axle.Row1.Wheel.Left.Brake.PadWear", "sample_rate_hz": 1.0, "priority": 5},
+    {"vss_name": "Vehicle.Chassis.Axle.Row1.Wheel.Right.Brake.PadWear", "sample_rate_hz": 1.0, "priority": 5},
     {
-        "vss_name": "Vehicle.Powertrain.CombustionEngine.EngineOilTemperature",
+        "vss_name": "Vehicle.Powertrain.CombustionEngine.EngineOil.Temperature",
         "sample_rate_hz": 2.0,
         "priority": 4,
     },
@@ -64,21 +65,38 @@ def _extract_finding_from_prompt(prompt: str) -> dict[str, Any]:
     except ValueError:
         confidence = 0.7
     session_id = _match(r"Sets `generated_from_session_id` to `\"([^\"]+)\"`") or "session-default-001"
+    candidate_raw = _match(r"Candidate signals \(optional hints\):\s*(\[[^\]]*\])")
+    candidate_signals: list[str] = []
+    if candidate_raw:
+        try:
+            import json as _json
+
+            candidate_signals = [str(s) for s in _json.loads(candidate_raw)]
+        except Exception:  # noqa: BLE001
+            candidate_signals = []
     return {
         "tenant_id": tenant_id,
         "finding_id": finding_id,
         "vehicle_scope": vehicle_scope,
         "confidence": confidence,
         "session_id": session_id,
+        "candidate_signals": candidate_signals,
     }
 
 
 def _build_policy(prompt: str) -> dict[str, Any]:
     extracted = _extract_finding_from_prompt(prompt)
+    candidate = extracted.get("candidate_signals") or []
+    if candidate:
+        signals = [
+            {"vss_name": s, "sample_rate_hz": 1.0, "priority": 5} for s in candidate
+        ]
+    else:
+        signals = list(_DEFAULT_BRAKE_SIGNALS)
     return {
         "policy_id": f"policy-{extracted['finding_id']}",
         "version": "1.0.0",
-        "signals": list(_DEFAULT_BRAKE_SIGNALS),
+        "signals": signals,
         "trigger_conditions": [{"kind": "time_window", "params": {"window_hours": 72}}],
         "collection_window_hours": 72,
         "hypothesis": "rotor temperature excursions correlated with mileage",

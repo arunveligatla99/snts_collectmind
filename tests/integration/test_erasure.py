@@ -52,7 +52,7 @@ def _publish_finding(finding_id: str, token: str) -> str:
             "anomaly_type": "brake_wear_early_stage",
             "hypothesis_class": "brake_wear",
             "hypothesis_statement": "rotor temperature excursion correlation",
-            "candidate_signals": ["Vehicle.Chassis.Brake.PadWear"],
+            "candidate_signals": ["Vehicle.Chassis.Axle.Row1.Wheel.Left.Brake.PadWear"],
             "vehicle_scope": ["VIN-erasure-1"],
             "upstream_confidence": 0.78,
         },
@@ -68,7 +68,7 @@ def _publish_finding(finding_id: str, token: str) -> str:
 
 def test_erasure_request_accepted_with_target_completion_at() -> None:
     require_local_stack()
-    require_slm()
+    # require_slm() removed: dev_default profile produces deterministic policy without an SLM container
     token = _mint()
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -91,7 +91,7 @@ def test_erasure_request_accepted_with_target_completion_at() -> None:
 def test_erasure_propagates_to_registry_telemetry_audit() -> None:
     """End-to-end: publish a finding, request erasure, verify per-store status."""
     require_local_stack()
-    require_slm()
+    # require_slm() removed: dev_default profile produces deterministic policy without an SLM container
     token = _mint()
     headers = {"Authorization": f"Bearer {token}"}
     finding_id = f"F-erasure-{uuid.uuid4().hex[:8]}"

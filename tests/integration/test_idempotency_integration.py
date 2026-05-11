@@ -48,7 +48,7 @@ def _payload(finding_id: str) -> dict[str, object]:
         "anomaly_type": "brake_wear_early_stage",
         "hypothesis_class": "brake_wear",
         "hypothesis_statement": "rotor temperature excursion correlation",
-        "candidate_signals": ["Vehicle.Chassis.Brake.PadWear"],
+        "candidate_signals": ["Vehicle.Chassis.Axle.Row1.Wheel.Left.Brake.PadWear"],
         "vehicle_scope": ["VIN-1"],
         "upstream_confidence": 0.78,
     }
@@ -56,7 +56,7 @@ def _payload(finding_id: str) -> dict[str, object]:
 
 def test_duplicate_publication_is_idempotent() -> None:
     require_local_stack()
-    require_slm()
+    # require_slm() removed: dev_default profile produces deterministic policy without an SLM container
     token = _mint()
     headers = {"Authorization": f"Bearer {token}"}
     finding_id = f"F-idem-{uuid.uuid4().hex[:8]}"

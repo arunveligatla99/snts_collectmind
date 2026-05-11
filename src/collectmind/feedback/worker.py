@@ -119,9 +119,12 @@ class FeedbackWorker:
                 FROM telemetry_observations
                 WHERE tenant_id = $1
                   AND vehicle_id = ANY($2::text[])
+                  AND policy_ref @> jsonb_build_object('policy_id', $3::text, 'version', $4::text)
                 ORDER BY observed_at DESC LIMIT 1000
                 """,
                 tenant_id,
                 vehicle_scope,
+                deployment.get("policy_id", ""),
+                deployment.get("version", ""),
             )
         return [dict(r) for r in rows]

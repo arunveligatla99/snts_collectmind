@@ -146,7 +146,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       OTLP_ENDPOINT: http://tempo:4317
-      TIME_ACCELERATION_FACTOR: "1.0"
+      TIME_ACCELERATION_FACTOR: "10000.0"
       LOG_LEVEL: INFO
     ports:
       - "8081:8000"
