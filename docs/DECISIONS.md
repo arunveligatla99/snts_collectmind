@@ -102,6 +102,32 @@ Both require a migration (a new SQL file in `src/collectmind/registry/migrations
 
 ---
 
+## 2026-05-11 — Phase 4 closure: zero verification cycles, three MEDIUM spot-check deferrals
+
+**Decision**: Phase 4 (US2, T105–T115) closed with zero verification fix-and-retest cycles. The test bar — 64 unit, 41 contract, 14 integration — went green on the first run against the real local Compose stack. Three MEDIUM-severity issues surfaced in the four-files spot-check at closure (rules.yaml `DashboardLagBreach` idle false-positive; `SoakErrorRateOrMemoryBreach` title-vs-expression mismatch; `alertmanager.yaml` inhibit rule referencing an unused `severity="critical"` tier). All three are documented on `docs/PROJECT_STATE.md`'s deferred list and land during Phase 5 (T120/T121 workflow_dispatch + nightly workflows, severity-tier standardization) rather than blocking Phase 4 closure.
+
+**Why this matters**: The zero-cycle closure is a real datapoint, not a sign the test bar is too lax. The deferred set names exactly what would have surfaced if the test bar covered idle-state behavior and severity-tier semantics — both of which the Phase 4 tests deliberately do not cover (T105 asserts dashboard structure, T106 asserts alert/runbook parity, T107 asserts webhook routing, T108 asserts dashboard data-freshness under load, T109 asserts recovery from a real outage). Each of the three deferred items needs a new test or a new check to lock the fix in; that test or check is what the Phase 5 work item produces alongside the fix. This is the canonical "trust the gate, audit on signal, defer on signal" pattern at work, contrasted with Phase 3's 13-cycle close where the bugs were in the load-bearing path and had to land inline.
+
+**Worked example**: `DashboardLagBreach` uses `time() - max(timestamp(collectmind_diagnostic_findings_received_total))`. Under steady load the expression measures Prometheus scrape lag, which is what SC-006 cares about. Under idle (no findings ever published in the session window) the counter has no recent sample, so `timestamp(...)` returns the last evaluation time and the lag appears infinite. The local Compose smoke runs under idle by default, which is why the issue surfaced in the spot-check, not in T108 (which publishes a finding before asserting). The fix replaces the predicate with `up{job="orchestration-api"} == 1` and `(time() - prometheus_target_last_scrape_seconds_ago)` for the freshness signal. The replacement lands in Phase 5 with a new unit test that drives the rules.yaml expression through Prometheus's promtool unit-test runner.
+
+## 2026-05-11 — T106 + T113 enforce the same canonical runbook section set, with `Related ADRs` / `Related FRs` non-enforced
+
+**Decision**: Both `tests/unit/test_alert_runbook_parity.py` (T106) and `scripts/check_runbook_completeness.py` (T113) enforce exactly four canonical runbook sections per alert page: `Symptoms`, `Dashboard`, `Mitigation`, `Escalation`. `Related ADRs` and `Related FRs` are present on every Phase 4 page but are NOT CI-enforced. The matching regex is `^#+\s*<Section>\b` so the heading level (h2, h3, etc.) is free and the section name is matched as a word.
+
+**Why this matters**: T106 and T113 are two views of the same contract — the test surface and the CI surface. If they disagree, a PR can pass pytest and fail CI (or vice versa) and the developer experience degrades. By writing the section list once and using it on both sides, the contract is single-sourced. Not enforcing `Related ADRs` / `Related FRs` keeps a future alert from being blocked because no ADR cross-reference applies — a real situation (e.g., the query latency alert has no ADR motivation). The section set deliberately matches the heading text exactly as written in T112's pages, so future authors do not need to guess between "Symptoms" and "Symptoms Observed."
+
+## 2026-05-11 — `policy_outcome_total` is a single counter with a `state` label, not three counters
+
+**Decision**: The Phase 4 dashboard's generation funnel renders `confirmed`, `ruled_out`, and `no_data` outcome rates as series under one PromQL expression: `sum by (state) (rate(collectmind_policy_outcome_total[1m]))`. The metric is declared once with `labelnames=("tenant_id", "state")`. The hypothesis confirmation rate panel filters `state="confirmed"` against the same counter.
+
+**Why this matters**: An earlier draft of the dashboard JSON referenced three counter names (`policy_outcome_confirmed_total`, `..._ruled_out_total`, `..._no_data_total`) that do not exist in `metrics.py`. The label-on-one-counter design is more idiomatic Prometheus and lets the dashboard render any new outcome state (e.g., `evidence_insufficient` in feature 004) without a new metric registration. T105's bidirectional declared-metric check caught this drift during the red phase before the dashboard was rewritten.
+
+## 2026-05-11 — Compose `scrape_interval` lowered from 15 s to 2 s to honor SC-006
+
+**Decision**: `infra/compose/prometheus.yml`'s `scrape_interval` and `evaluation_interval` lowered to `2s` and `5s` respectively (from `15s` for both). The 15-second default would make T108's "dashboard lag <=10 s" assertion fail by construction (a single scrape interval already exceeds the SLO ceiling). The 2-second scrape rate raises CPU on the local Compose stack but stays well within laptop-class budgets for the foundation smoke.
+
+**Why this matters**: SC-006 expresses a 10-second ceiling on dashboard freshness. Prometheus's scrape interval is a hard floor on that freshness; any scrape interval above 10 seconds violates SC-006 deterministically. The Compose config and the binding SLO are now consistent. Production scrape intervals (managed via the Terraform IaC at T128) inherit the 2-second pin unless an ADR records a deviation. This is a worked example of the user's Phase 4 review note that "the compose change is mechanical; the test stays as-is" — the test was right; the infrastructure needed to catch up.
+
 ## 2026-05-09 — The 13 verification fixes in `7dd2723` as the canonical worked example of verify-before-clear
 
 **Decision**: The verification work between Phase 3 implementation (`b9fddc8`) and Phase 3 closure (`7dd2723`, `d5f4aa5`) is the canonical worked example of the verify-before-clear pattern. Future phase closures follow the same shape:

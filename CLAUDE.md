@@ -53,7 +53,9 @@ ADRs live at `docs/adr/`. Drafting cadence and table of contents at `docs/adr/RE
 
 - **Docker Desktop instability surfaced once during this project.** If the daemon is down at session start (`failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`), the smoke-test path is documented in `specs/001-policy-loop-vertical-slice/quickstart.md`. Restart Docker Desktop and re-run `docker compose -f infra/compose/docker-compose.yaml up -d`.
 - **The session that closed Phase 3 used `SLM_PROFILE=dev_default`.** That client is gated by ADR-0006 to local-only environments via `app.py`'s startup guard (`COLLECTMIND_ENV != "local"` refuses it). For PR-tier CI use `SLM_PROFILE=stub`. For workflow-dispatch full-SLM use `SLM_PROFILE=vllm`.
-- **Two HIGH code-review flags are explicitly deferred:** audit `UNIQUE (correlation_id, kind)` constraint, and a dedicated `error JSONB` column on `audit_events`. Both require migrations and a retest cycle and land in a Phase 4-or-later migration ADR. Logged in `docs/DECISIONS.md`.
+- **Two HIGH code-review flags from Phase 3 are explicitly deferred:** audit `UNIQUE (correlation_id, kind)` constraint, and a dedicated `error JSONB` column on `audit_events`. Both require migrations and a retest cycle and land in a Phase 5-or-later migration ADR. Logged in `docs/DECISIONS.md`.
+- **Three MEDIUM Phase 4 spot-check flags are explicitly deferred** (none HIGH; none block closure): `DashboardLagBreach` idle false-positive in `observability/prometheus/rules.yaml`; `SoakErrorRateOrMemoryBreach` covers error rate only (memory half lands with T121 nightly soak); `alertmanager.yaml` inhibit rule references an unused `severity="critical"` tier. Tracked in `docs/PROJECT_STATE.md`'s deferred list and in `docs/DECISIONS.md`.
+- **Phase 4 added four new Compose services**: `alertmanager` (:9093), `local-webhook` (:9099, stdlib HTTP receiver from `scripts/local_webhook.py` used by the T107 integration test), plus a new `depends_on` chain that lets Prometheus discover Alertmanager. Prometheus scrape interval lowered to 2 s to honor SC-006.
 
 ## Mandatory pre-read at session start
 

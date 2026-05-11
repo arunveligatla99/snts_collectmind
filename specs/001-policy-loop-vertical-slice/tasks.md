@@ -169,20 +169,20 @@ Single project with multi-module Python service. Source under `src/collectmind/`
 
 ### Tests for User Story 2
 
-- [ ] T105 [P] [US2] Contract test: `observability/grafana/dashboards/collectmind-end-to-end.json` parses, references only declared metrics, and contains the panels mandated by FR-014/FR-015 in `tests/contract/test_dashboard_provisioning.py`.
-- [ ] T106 [P] [US2] Unit test: every alert rule in `observability/prometheus/rules.yaml` has a corresponding runbook entry under `observability/runbooks/` in `tests/unit/test_alert_runbook_parity.py` (asserts FR-022 CI guard's behavior).
-- [ ] T107 [US2] Integration test: SLO breach simulation triggers alert; Alertmanager webhook payload contains the runbook URL in `tests/integration/test_slo_alert.py`.
-- [ ] T108 [US2] Integration test: dashboard reflects pipeline state with at most 10s of lag from event acceptance, asserting SC-006 in `tests/integration/test_dashboard_lag.py`.
-- [ ] T109 [US2] Integration test: 1-minute internal-dependency outage; queued events drain within 5 minutes of recovery; no event lost — exercises FR-022a in `tests/integration/test_recovery_from_outage.py`.
+- [X] T105 [P] [US2] Contract test: `observability/grafana/dashboards/collectmind-end-to-end.json` parses, references only declared metrics, and contains the panels mandated by FR-014/FR-015 in `tests/contract/test_dashboard_provisioning.py`. <!-- 3266b13 -->
+- [X] T106 [P] [US2] Unit test: every alert rule in `observability/prometheus/rules.yaml` has a corresponding runbook entry under `observability/runbooks/` in `tests/unit/test_alert_runbook_parity.py` (asserts FR-022 CI guard's behavior). <!-- 3266b13 -->
+- [X] T107 [US2] Integration test: SLO breach simulation triggers alert; Alertmanager webhook payload contains the runbook URL in `tests/integration/test_slo_alert.py`. <!-- 3266b13 -->
+- [X] T108 [US2] Integration test: dashboard reflects pipeline state with at most 10s of lag from event acceptance, asserting SC-006 in `tests/integration/test_dashboard_lag.py`. <!-- 3266b13 -->
+- [X] T109 [US2] Integration test: 1-minute internal-dependency outage; queued events drain within 5 minutes of recovery; no event lost — exercises FR-022a in `tests/integration/test_recovery_from_outage.py`. <!-- 3266b13 -->
 
 ### Implementation for User Story 2
 
-- [ ] T110 [US2] Create `observability/grafana/dashboards/collectmind-end-to-end.json` with panels: ingest rate, generation funnel (received → generated → validated → deployed → confirmed/ruled_out/no_data), validation pass rate, time-to-deploy histogram (p50/p95/p99), hypothesis confirmation rate, dead-letter count, retry rate, SLM latency, SLM constraint-violation rate, active SLM weight SHA, active runtime image digest, authentication-failure rate.
-- [ ] T111 [P] [US2] Create `observability/prometheus/rules.yaml` with one alert per binding SLO: SC-001 (latency p95), SC-002 (success-rate breach), SC-003 (soak error-rate / memory-growth), SC-004 (query p95), SC-005 (recovery time exceeded), SC-006 (dashboard lag), SC-010 (outcome write delay), SC-012 (availability).
-- [ ] T112 [P] [US2] Author the per-alert runbook pages under `observability/runbooks/` (one page per alert from T111 plus the failure-mode pages from T047): symptoms, dashboard links, mitigation steps, escalation, related ADRs.
-- [ ] T113 [US2] Create `scripts/check_runbook_completeness.py`: invoked in CI, parses `observability/prometheus/rules.yaml` and `observability/runbooks/`, fails the build if any alert lacks a runbook entry (FR-022 + R-019).
-- [ ] T114 [P] [US2] Add metrics emission in `src/collectmind/observability/metrics.py` for every metric panel from T110, with histogram buckets sized for the SLO assertions in T111.
-- [ ] T115 [US2] Create Alertmanager configuration in `infra/compose/alertmanager.yaml` that routes alerts to a local webhook receiver (`scripts/local_webhook.py`) for integration-test consumption; cloud routing is config-only and pinned in plan.
+- [X] T110 [US2] Create `observability/grafana/dashboards/collectmind-end-to-end.json` with panels: ingest rate, generation funnel (received → generated → validated → deployed → confirmed/ruled_out/no_data), validation pass rate, time-to-deploy histogram (p50/p95/p99), hypothesis confirmation rate, dead-letter count, retry rate, SLM latency, SLM constraint-violation rate, active SLM weight SHA, active runtime image digest, authentication-failure rate. <!-- d80fc84 -->
+- [X] T111 [P] [US2] Create `observability/prometheus/rules.yaml` with one alert per binding SLO: SC-001 (latency p95), SC-002 (success-rate breach), SC-003 (soak error-rate / memory-growth), SC-004 (query p95), SC-005 (recovery time exceeded), SC-006 (dashboard lag), SC-010 (outcome write delay), SC-012 (availability). <!-- d80fc84 -->
+- [X] T112 [P] [US2] Author the per-alert runbook pages under `observability/runbooks/` (one page per alert from T111 plus the failure-mode pages from T047): symptoms, dashboard links, mitigation steps, escalation, related ADRs. <!-- d80fc84 -->
+- [X] T113 [US2] Create `scripts/check_runbook_completeness.py`: invoked in CI, parses `observability/prometheus/rules.yaml` and `observability/runbooks/`, fails the build if any alert lacks a runbook entry (FR-022 + R-019). <!-- d80fc84 -->
+- [X] T114 [P] [US2] Add metrics emission in `src/collectmind/observability/metrics.py` for every metric panel from T110, with histogram buckets sized for the SLO assertions in T111. <!-- d80fc84 -->
+- [X] T115 [US2] Create Alertmanager configuration in `infra/compose/alertmanager.yaml` that routes alerts to a local webhook receiver (`scripts/local_webhook.py`) for integration-test consumption; cloud routing is config-only and pinned in plan. <!-- d80fc84 -->
 
 **Checkpoint**: User Story 2 is fully functional. The dashboard is provisioned automatically by the local stack; alerts fire on SLO breach; every alert has a runbook link.
 
