@@ -11,6 +11,7 @@ This directory holds the ADRs that govern CollectMind. ADRs are written in MADR 
 | [ADR-0003](0003-constrained-decoding-library.md) | Constrained-decoding library (outlines vs instructor vs equivalent) | Between `/speckit-constitution` and `/speckit-plan` | Answers Decision D4. The plan's MODEL LAYER section names the library. |
 | [ADR-0004](0004-fingerprint-stub.md) | Deterministic-fingerprint Policy Generator stub for smoke and load tests | As part of `/speckit-plan` output | The stub is a CI-design decision that depends on the test topology defined by the plan. |
 | [ADR-0005](0005-slm-hosting-topology.md) | SLM hosting topology on AWS (ECS on EC2 with g5/g6 vs EKS with a GPU node group) | As part of `/speckit-plan` output | Infrastructure decision that depends on the plan's compute module. |
+| [ADR-0006](0006-dev-default-policy-client.md) | Dev-only `DevDefaultPolicyClient` for the foundation smoke path | During `/speckit-implement` (Phase 3 US1 closure) | Amends ADR-0002 + ADR-0004's `PolicyGeneratorClient` enumeration; records the gated deviation from Principle XIII's decode-time-grammar requirement for the local foundation quickstart. |
 
 ## Rules
 

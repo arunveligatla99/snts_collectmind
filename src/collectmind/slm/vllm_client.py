@@ -60,8 +60,18 @@ class VLLMClient:
     def generate(self, request: dict[str, Any] | GenerationRequest) -> GenerationResponse:
         body = request.to_dict() if isinstance(request, GenerationRequest) else dict(request)
         decoding = body.get("decoding") or {}
-        if int(decoding.get("temperature", 0) * 1000) != 0 and os.environ.get("CI"):
-            raise RuntimeError("CI builds require temperature=0 (Principle XIV).")
+        if os.environ.get("CI"):
+            # Principle XIV: deterministic decoding in CI. Strict float comparison;
+            # any positive temperature beyond machine epsilon is a regression.
+            temp = float(decoding.get("temperature", 0.0))
+            top_p = float(decoding.get("top_p", 1.0))
+            top_k = int(decoding.get("top_k", -1))
+            if abs(temp) > 1e-9 or abs(top_p - 1.0) > 1e-9 or top_k not in (-1, 0):
+                raise RuntimeError(
+                    "CI builds require deterministic decoding (Principle XIV): "
+                    f"temperature=0 (got {temp!r}), top_p=1.0 (got {top_p!r}), "
+                    f"top_k in {{-1, 0}} (got {top_k!r})."
+                )
 
         payload = {
             "model": _REPO,

@@ -72,6 +72,7 @@ _CORPUS_ROOT = _resolve_corpus_root()
 
 def _select_policy_client() -> PolicyGeneratorClient:
     profile = os.environ.get("SLM_PROFILE", "dev_default").lower()
+    env = os.environ.get("COLLECTMIND_ENV", "local").lower()
     if profile == "vllm":
         from collectmind.slm.vllm_client import VLLMClient
 
@@ -82,6 +83,13 @@ def _select_policy_client() -> PolicyGeneratorClient:
         return LlamaCppClient.from_env()
     if profile == "stub":
         return FingerprintStubClient(corpus_root=_CORPUS_ROOT)
+    # dev_default fallback. Refuse in any non-local environment (ADR-0006).
+    if env != "local":
+        raise RuntimeError(
+            f"SLM_PROFILE=dev_default is not allowed when COLLECTMIND_ENV={env!r}. "
+            "Per ADR-0006, the DevDefaultPolicyClient is gated to local-only "
+            "foundation smoke. Set SLM_PROFILE to one of {vllm, cpu, stub}."
+        )
     from collectmind.slm.dev_default_client import DevDefaultPolicyClient
 
     return DevDefaultPolicyClient()
