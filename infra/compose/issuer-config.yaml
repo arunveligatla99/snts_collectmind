@@ -6,3 +6,12 @@ clients:
     client_secret: local-dev-only
     tenant_id: feature-001-default
     scopes: [findings:write, findings:read]
+  # Feature 002: two additional tenants for the multi-tenant negative-path test bar.
+  - client_id: tenant-a
+    client_secret: local-dev-only
+    tenant_id: tenant-a
+    scopes: [findings:write, findings:read]
+  - client_id: tenant-b
+    client_secret: local-dev-only
+    tenant_id: tenant-b
+    scopes: [findings:write, findings:read]
