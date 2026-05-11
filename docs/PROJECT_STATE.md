@@ -11,21 +11,28 @@
 | Phase 1: Setup (T001–T019) | Repo scaffolding, tooling, Compose stack | **Complete** | `50ade89` |
 | Phase 2: Foundational (T020–T047, gap at T036) | VSS pin, weight manifest, migrations, OAuth2 verifier, OTel, Kafka topics, error model, runbook stubs, contracts mirrored | **Complete** | `50ade89` |
 | Phase 3: US1 — Operator end-to-end policy loop (T048–T104) | Tests in red phase, then full US1 implementation | **Complete** | `b9fddc8` (US1 implementation); `9c4bd7d` (T048–T064 tests red phase); `7dd2723` (Phase 3 verification fixes); `d5f4aa5` (ADR-0006 + startup guard + vLLM CI decoding-strict check) |
-| Phase 4: US2 — On-call observes pipeline (T105–T115) | Dashboard JSON, alert rules, runbook pages, alert-rule parity gate, Alertmanager + local webhook | **Complete** | `d80fc84` (US2 implementation); `3266b13` (T105–T109 tests red phase) |
-| Phase 5: US3 — Reviewer trusts the system (T116–T133) | Load tests, CI workflows, IaC, threat model, README polish | Not started |
+| Phase 4: US2 — On-call observes pipeline (T105–T115) | Dashboard JSON, alert rules, runbook pages, alert-rule parity gate, Alertmanager + local webhook | **Complete** | `d80fc84` (US2 implementation); `3266b13` (T105–T109 tests red phase); `c443e2c` (Phase 4 closure docs) |
+| Phase 5: US3 — Reviewer trusts the system (T116–T133) | Locust load (smoke/full/soak), CI workflows (PR + workflow_dispatch + nightly + record-corpus), Trivy + Syft + gitleaks, custom guards (no-TODO, SLM pinning, secrets, runbook parity, OpenAPI dump), full Terraform module set per ADR-0005, threat model, README polish | **Complete** | `fe9eb41` |
 | Phase 6: Polish (T134–T142) | Coverage sweep, eval baseline, ADR-0002 promotion, PII strip CI gate | Not started |
 
 T036 is intentionally absent (build-tooling gate moved to `scripts/check_runbook_completeness.py` at T113; see `docs/DECISIONS.md`).
 
-## Test bar at Phase 4 closure
+## Test bar at Phase 5 closure
 
-| Tier | Pass | Fail | Skip | Wall | Δ vs Phase 3 |
+| Tier | Pass | Fail | Skip | Wall | Δ vs Phase 4 |
 |---|---|---|---|---|---|
-| Unit | 64 | 0 | 0 | 1 s | +5 (T106) |
-| Contract | 41 | 0 | 0 | 230 s | +5 (T105) |
-| Integration | 14 | 0 | 0 | 204 s | +4 (T107, T108×2, T109) |
+| Unit | 64 | 0 | 0 | 1 s | 0 |
+| Contract | 41 | 0 | 0 | 202 s | 0 |
+| Integration | 14 | 0 | 0 | 225 s | 0 |
+| Load (smoke, local) | n/a | 0 errors | n/a | 60 s | new |
 
-Zero verification cycles needed. One in-flight test-design fix: the T105 declared-metric set now includes the `_total`/`_created`/`_bucket`/`_sum`/`_count` suffix family so prometheus_client's internal Counter `_total` stripping does not produce false negatives.
+Plus four CI guards green locally:
+- `scripts/check_no_todo_fixme.py` — Constitution Principle III
+- `scripts/check_slm_pinning.py` — Constitution Principle XIV + ADR-0002
+- `scripts/check_runbook_completeness.py` — FR-022
+- `python -m collectmind.openapi.dump` diff vs `docs/api/openapi.yaml` — T132
+
+Zero verification cycles. One in-flight Phase 1 leftover fixed: `scripts/check_no_todo_fixme.py`'s `.venv` exclude only matched the bare directory name, missing `.venv-test` and similar host-venv layouts. The Phase 5 rewrite uses prefix + regex matching to cover every `.?venv*` form.
 
 ## Stack-up
 
@@ -45,34 +52,16 @@ Endpoints:
 
 ## Smoke test
 
+See `docs/PROJECT_STATE.md` history for the Phase 3/4 step-by-step. Phase 5 adds the OpenAPI dump check and the load-smoke local-run:
+
 ```bash
-# Mint a JWT from the local mock issuer.
-TOKEN=$(curl -sS -X POST http://localhost:8088/token \
-  -d 'grant_type=client_credentials&client_id=feature-001-default&client_secret=local-dev-only' \
-  | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+# OpenAPI dump must match the committed contract.
+PYTHONPATH=src python -m collectmind.openapi.dump | diff -u docs/api/openapi.yaml -
 
-# Publish a brake-wear diagnostic finding.
-curl -sS -X POST http://localhost:8081/api/v1/findings \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d '{
-    "schema_version": "1.0.0",
-    "finding_id": "F-smoke-001",
-    "anomaly_type": "brake_wear_early_stage",
-    "hypothesis_class": "brake_wear",
-    "hypothesis_statement": "rotor temperature excursion correlation",
-    "candidate_signals": ["Vehicle.Chassis.Axle.Row1.Wheel.Left.Brake.PadWear"],
-    "vehicle_scope": ["VIN-1"],
-    "upstream_confidence": 0.78
-  }' | python -m json.tool
-
-# Wait briefly (time-acceleration factor in compose is 10000), then query the outcome.
-curl -sS -H "Authorization: Bearer $TOKEN" \
-  http://localhost:8081/api/v1/findings/F-smoke-001/outcome | python -m json.tool
-
-# Verify Phase 4 observability surface:
-curl -sS http://localhost:9090/api/v1/query --data-urlencode 'query=collectmind_diagnostic_findings_received_total' | python -m json.tool
-curl -sS http://localhost:9093/api/v2/status   | python -m json.tool   # Alertmanager
-curl -sS http://localhost:9099/healthz         | python -m json.tool   # local webhook
+# Local smoke load (deterministic stub; 60s, 50 users).
+PYTHONPATH=. locust -f tests/load/locustfile_smoke.py \
+  --headless --users 50 --spawn-rate 10 --run-time 60s \
+  --host http://localhost:8081 --csv reports/smoke
 ```
 
 ## Run tests
@@ -80,38 +69,47 @@ curl -sS http://localhost:9099/healthz         | python -m json.tool   # local w
 ```bash
 # Inside a Python 3.11 (or 3.13) venv with dev deps installed.
 PYTHONPATH=src pytest tests/unit -q --no-cov                # 64 tests, ~1 s
-PYTHONPATH=src pytest tests/contract -q --no-cov            # 41 tests, ~230 s (schemathesis fuzz + dashboard contract)
-PYTHONPATH=src pytest tests/integration -q --no-cov         # 14 tests, ~205 s (real local stack; T109 stops Redis for 60 s)
-
-# CI-equivalent runbook-completeness gate (T113):
-python scripts/check_runbook_completeness.py
+PYTHONPATH=src pytest tests/contract -q --no-cov            # 41 tests, ~200 s
+PYTHONPATH=src pytest tests/integration -q --no-cov         # 14 tests, ~225 s
+python scripts/check_runbook_completeness.py                # T113 CI guard
+python scripts/check_no_todo_fixme.py                       # T125 CI guard
+python scripts/check_slm_pinning.py                         # T126 CI guard
+python scripts/check_secrets.py                             # T127 (needs gitleaks on PATH)
 ```
-
-For host venv setup the session that closed Phase 3 used `.venv-test` with pinned deps (see `pyproject.toml`'s `[project.optional-dependencies].dev`). Phase 4 closure uses the same.
 
 ## What is next
 
-**Phase 5 — User Story 3 (P3, T116–T133):** load tests against the deterministic-fingerprint stub (T116) and the real SLM (T117 workflow_dispatch); soak tests (T118 nightly). CI workflows: PR-tier (`ci.yaml`), workflow_dispatch (`ci-workflow-dispatch.yaml`), nightly (`nightly.yaml`), corpus recording (`record-corpus.yaml`). Trivy + Syft + check_no_todo_fixme + check_slm_pinning + gitleaks. Terraform IaC under `infra/terraform/`. README polish, threat model, OpenAPI dump check.
-
-The exit criteria are documented in `specs/001-policy-loop-vertical-slice/spec.md` US3 acceptance scenarios.
+**Phase 6 — Polish (T134–T142):** Coverage sweep to bring every module to 85 percent line floor; lint and type sweep; dashboard-lag SLO measurement on steady-state local stack; `make eval` real-SLM run + ADR-0002 baseline-row commit promoting it from Proposed to Accepted; cross-link spec/plan/research/data-model/contracts/quickstart from README; CLAUDE.md SPECKIT-block verification; production-readiness review against every NON-NEGOTIABLE principle; PII-strip CI gate at T142 (closes SC-007).
 
 ## What is deferred (named gaps; not silent)
 
 | Item | Source | Reason |
 |---|---|---|
-| **Audit `UNIQUE (correlation_id, kind)` constraint + `ON CONFLICT DO NOTHING`** (Flag 9 from Phase 3 spot-check) | `src/collectmind/registry/audit.py` | Requires a migration + integration retest. Lands as a Phase 5-or-later migration ADR. |
-| **Dedicated `error JSONB` column on `audit_events`** to replace the `_extras` hack (Flag 10) | `src/collectmind/registry/audit.py`, migration `008_audit_events.sql` | Requires a migration + retest. Same Phase 5-or-later migration ADR as Flag 9. |
-| **T126 CI guard amendment refusing `SLM_PROFILE=dev_default` in any workflow file** | `scripts/check_slm_pinning.py` (planned in Phase 5) | Application-level startup guard already refuses non-local environments per ADR-0006; CI-pipeline-level guard is belt-and-suspenders. Lands during Phase 5 T126 work. |
+| **Audit `UNIQUE (correlation_id, kind)` constraint + `ON CONFLICT DO NOTHING`** (Flag 9 from Phase 3 spot-check) | `src/collectmind/registry/audit.py` | Requires a migration + integration retest. Lands as a Phase 6-or-later migration ADR. |
+| **Dedicated `error JSONB` column on `audit_events`** to replace the `_extras` hack (Flag 10) | `src/collectmind/registry/audit.py`, migration `008_audit_events.sql` | Requires a migration + retest. Same Phase 6-or-later migration ADR as Flag 9. |
 | **Eval baseline for ADR-0002** (bracketed fields under "Eval-suite baseline (filled after first eval run)") | `docs/adr/0002-default-slm-qwen2-5-7b-instruct.md` | Requires a real-SLM eval run on a GPU runner. Lands at T137 (Phase 6 Polish) via a follow-up commit titled `docs: ADR-0002 record eval baseline`. ADR-0002 promotes from Proposed to Accepted in the same commit. |
 | **Per-signal grouping in `BrakeWearHypothesisRule`** (MEDIUM flag from Phase 3 spot-check) | `src/collectmind/feedback/evaluator.py` | Not load-bearing for feature 001; the rule gets reworked in feature 004 (validator hardening) or feature 005 (confidence gating). |
 | **VLLMClient resource leak + missing OTel trace propagation on httpx** (MEDIUM flags) | `src/collectmind/slm/vllm_client.py` | Land alongside the GPU-tier integration work in feature 005's full SLM gating. |
-| **`DashboardLagBreach` idle false-positive** (MEDIUM, Phase 4 spot-check) | `observability/prometheus/rules.yaml` | Alert fires falsely under zero-ingest because `timestamp(collectmind_diagnostic_findings_received_total)` has no recent sample. Replace with a `scrape_duration_seconds` or `up == 1`-gated expression in Phase 5 or feature 002. Local-only; SC-006 is meaningful under load. |
-| **`SoakErrorRateOrMemoryBreach` covers error rate only** (MEDIUM, Phase 4 spot-check) | `observability/prometheus/rules.yaml` | Title implies error rate OR memory growth; expression covers only error rate. Memory-growth half lands with the T121 nightly soak workflow when `process_resident_memory_bytes` becomes the soak's primary observable. |
-| **`alertmanager.yaml` inhibit rule references `severity="critical"`** (MEDIUM, Phase 4 spot-check) | `infra/compose/alertmanager.yaml` | Every Phase 4 alert uses `severity: page`; the inhibit rule is dead code until severity tiers are standardized. Lands during Phase 5 when paging vs warning tiers are introduced. |
+| **ECS execution role does NOT have Secrets Manager read** (MEDIUM, Phase 5 spot-check) | `infra/terraform/secrets/main.tf` | Deliberate — the task role fetches secrets at runtime, not at task launch (least privilege). If a future container needs `valueFrom: secretsmanager`-shaped secrets at launch, add the grant explicitly via a new IAM policy attachment alongside an ADR. Documented in `docs/DECISIONS.md`. |
+| **Phase 1 leftover: container OOM ADR / actually closed** | resolved | Phase 5 `scripts/check_no_todo_fixme.py` rewrite fixed the venv-traversal bug; the Phase 1 script was correct policy with a layout gap. |
+| **`ci.yaml` rolling 5-PR wall-clock window** (T119 follow-up) | `.github/workflows/ci.yaml` `wall-clock` job | Currently emits `ci-wall-clock.json` as an artifact but does not yet read prior PR values to enforce the rolling window. Lands as a small Phase 6 follow-up script `scripts/ci_wall_clock_window.py` if SC-009 starts trending toward 18 minutes. |
+
+## Phase 5 spot-check findings
+
+Files reviewed: `.github/workflows/ci.yaml`, `infra/terraform/compute/main.tf`, `docs/security/threat-model.md`, `infra/terraform/secrets/main.tf`.
+
+Zero HIGH. Three MEDIUMs:
+1. **Fixed inline**: `pip-audit --ignore-vuln GHSA-0000-0000-0000` placeholder removed (misleading; implied a known-ignored CVE).
+2. **Fixed inline**: `contract-tests` step comment clarified — runs under `SLM_PROFILE=stub`; FR-022's real-SLM 60s-warm-path contract is workflow_dispatch-tier.
+3. **Deferred** (documented in `docs/DECISIONS.md` + above): ECS execution role does NOT have Secrets Manager read. Least-privilege choice — the task role fetches secrets at runtime, not at task launch.
+
+Several LOW (cosmetic) deferred to Phase 6 polish sweep: `containerInsights` enabled on both ECS clusters (cost ≠ correctness); terraform plan `\|\| true` swallows credentials-missing errors in PR-tier (intentional; documented inline).
 
 ## Commit chain (feature 001)
 
 ```
+fe9eb41  feat(001): implement US3 (T116-T133) — CI/CD, IaC, load, threat model
+c443e2c  docs: Phase 4 closure — tasks, project state, decisions, CLAUDE.md
 d80fc84  feat(001): implement US2 (T110-T115) — dashboard, alerts, runbooks, alertmanager
 3266b13  test(001): write US2 tests (red phase, T105-T109)
 86618bb  docs: project state, decisions, runbook index, README, CLAUDE.md, task progress at end of Phase 3

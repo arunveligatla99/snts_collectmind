@@ -122,6 +122,36 @@ Both require a migration (a new SQL file in `src/collectmind/registry/migrations
 
 **Why this matters**: An earlier draft of the dashboard JSON referenced three counter names (`policy_outcome_confirmed_total`, `..._ruled_out_total`, `..._no_data_total`) that do not exist in `metrics.py`. The label-on-one-counter design is more idiomatic Prometheus and lets the dashboard render any new outcome state (e.g., `evidence_insufficient` in feature 004) without a new metric registration. T105's bidirectional declared-metric check caught this drift during the red phase before the dashboard was rewritten.
 
+## 2026-05-11 — Phase 5 closure: T128 ECS execution role intentionally does NOT have Secrets Manager read
+
+**Decision**: `infra/terraform/secrets/main.tf` grants `secretsmanager:GetSecretValue` to the orchestration-api task role only, not to the ECS execution role. The task definition does NOT use `valueFrom: secretsmanager` shapes; the application code fetches secrets at runtime via the AWS SDK using the task role's credentials.
+
+**Why this matters**: ECS task definitions support two paths for secrets: (a) ECS fetches at task launch via the execution role and injects as env vars; (b) the application fetches at runtime via the task role. Path (a) is convenient and works well when secrets are stable; path (b) is the least-privilege choice — the execution role stays scoped to ECR pulls and CloudWatch logs only, and the application can re-fetch secrets on rotation without restarting the task. The Phase 5 spot-check on `secrets/main.tf` flagged this as MEDIUM because the execution role lacked the grant; the decision here is that the absence is deliberate. If a future container genuinely needs `valueFrom`-shape secrets, the right move is a new IAM policy attachment scoped narrowly, recorded alongside an ADR — not a blanket execution-role grant.
+
+## 2026-05-11 — Phase 5 closure: zero verification cycles, three MEDIUM spot-check findings (two fixed inline)
+
+**Decision**: Phase 5 (US3, T116–T133) closed with zero verification fix-and-retest cycles. Test bar held at 64 unit / 41 contract / 14 integration (no regression from Phase 4) plus the local smoke load (60 s, 50 users, deterministic stub, 0 failures, p50 = 50 ms). Three MEDIUM-severity issues surfaced in the four-files spot-check at closure; two were fixed inline and one (the ECS-execution-role choice above) was documented as deliberate.
+
+**Why this matters**: This is the second Phase in a row to close zero-cycle. The pattern repeats: tests in red phase, implementation, verification against the real local stack, then a four-files spot-check that catches what the test bar deliberately does not. Phase 5 is the broader of the two closures (32 files, 2729 insertions vs Phase 4's 33 files / 1238 insertions) because IaC + CI workflows + threat model are wide-but-shallow. The pattern works for wide-but-shallow as well as deep-and-narrow.
+
+## 2026-05-11 — Phase 5 closure: severity-tier standardization in `observability/prometheus/rules.yaml`
+
+**Decision**: Phase 5 standardizes alert severity tiers to two values: `severity: critical` (SLO breach, pages immediately) and `severity: page` (warning-tier, paged with longer Alertmanager `group_wait`, suppressed by an inhibit rule when a critical alert for the same `(alertname, service)` is firing). All Phase 5 alerts use `critical` because each measures a binding SLO. `alertmanager.yaml` is updated to match: the inhibit rule now references real-tier names rather than the unused `severity="critical"`-vs-`severity="page"` pair from Phase 4.
+
+**Why this matters**: Phase 4 used `severity: page` for everything and had a dead `inhibit_rules` block referencing `severity="critical"`. The Phase 5 standardization closes the gap: the inhibit rule fires when needed, and the convention scales to feature 002's warning-tier alerts without another rename pass.
+
+## 2026-05-11 — Phase 5 closure: `DashboardLagBreach` predicate replaced
+
+**Decision**: The Phase 4 `DashboardLagBreach` predicate `time() - max(timestamp(collectmind_diagnostic_findings_received_total)) > 10` had an idle false-positive (no recent sample → infinite lag). Phase 5 replaces it with `max(up{job="orchestration-api"}) == 1 AND max(scrape_duration_seconds{job="orchestration-api"}) > 10`. The replacement is anchored to scrape-target liveness, so the alert can only fire while the target is being scraped, and it measures the actual scrape duration rather than inferring it from sample timestamps. The replacement is documented inline in `rules.yaml` with a backref to the Phase 4 deferral.
+
+**Why this matters**: A false-firing alert is worse than a missing alert — it teaches the on-call to ignore the page. The Phase 4 deferral named the issue explicitly; Phase 5 closed it as part of the severity-tier standardization sweep so the work landed atomically rather than as a stand-alone fix.
+
+## 2026-05-11 — Phase 5 closure: `SoakErrorRateOrMemoryBreach` split into two alerts
+
+**Decision**: The Phase 4 `SoakErrorRateOrMemoryBreach` alert had a title implying error rate OR memory growth but an expression covering only error rate. Phase 5 splits it into `SoakErrorRateBreach` (error rate, unchanged predicate) and `SoakMemoryGrowthBreach` (24-hour RSS delta against orchestration-api). Both share `slo: SC-003` and the `slo-003-soak.md` runbook. The nightly soak workflow (`.github/workflows/nightly.yaml`) asserts the same memory-growth threshold (`(end - start) / start <= 0.05`) as a post-run gate so SC-003 is both a real-time alert and a workflow-tier assertion.
+
+**Why this matters**: SC-003 has two halves in the spec; the rules.yaml surface should match the spec surface so a reviewer reading the alert set sees both halves named. Now: in-flight observability surfaces both halves, and the nightly workflow's post-run gate enforces the memory half against the 24-hour budget that's not measurable in steady-state on PR-tier.
+
 ## 2026-05-11 — Compose `scrape_interval` lowered from 15 s to 2 s to honor SC-006
 
 **Decision**: `infra/compose/prometheus.yml`'s `scrape_interval` and `evaluation_interval` lowered to `2s` and `5s` respectively (from `15s` for both). The 15-second default would make T108's "dashboard lag <=10 s" assertion fail by construction (a single scrape interval already exceeds the SLO ceiling). The 2-second scrape rate raises CPU on the local Compose stack but stays well within laptop-class budgets for the foundation smoke.
