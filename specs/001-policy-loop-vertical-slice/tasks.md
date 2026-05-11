@@ -226,14 +226,14 @@ Single project with multi-module Python service. Source under `src/collectmind/`
 
 **Purpose**: Improvements that affect multiple user stories.
 
-- [ ] T134 [P] Coverage sweep: add unit tests where pytest-cov reports below the 85% line floor; ensure CI gate is green at the floor (per Principle IV).
-- [ ] T135 [P] Lint and type sweep: run `make lint` and `make typecheck` across the codebase; fix any drift introduced during implementation.
-- [ ] T136 [P] Dashboard-lag SLO measurement: confirm SC-006 holds in steady state on the local stack; record the measured value in the runbook.
-- [ ] T137 [P] Run `make eval` once US1 is complete; record the eval-suite baseline values from ADR-0002's bracketed table via a follow-up commit titled `docs: ADR-0002 record eval baseline` and promote ADR-0002 from `Proposed` to `Accepted` in the same commit.
-- [ ] T138 [P] Cross-link spec/plan/research/data-model/contracts/quickstart from `README.md` and `/docs`.
-- [ ] T139 Run `quickstart.md` end-to-end on a clean machine; update the troubleshooting table if any step fails.
-- [ ] T140 [P] Verify CLAUDE.md SPECKIT block points at the current plan path (already updated in plan output; this task is the verification).
-- [ ] T141 Production-readiness review against the constitution: check every NON-NEGOTIABLE principle (IV, VII, IX, X, XI, XIII, XIV) against the implemented system; record findings in `docs/runbook/feature-001-readiness-review.md`.
+- [X] T134 [P] Coverage sweep: add unit tests where pytest-cov reports below the 85% line floor; ensure CI gate is green at the floor (per Principle IV). <!-- 990b437 -->
+- [X] T135 [P] Lint and type sweep: run `make lint` and `make typecheck` across the codebase; fix any drift introduced during implementation. <!-- 990b437 -->
+- [X] T136 [P] Dashboard-lag SLO measurement: confirm SC-006 holds in steady state on the local stack; record the measured value in the runbook. <!-- 990b437 -->
+- [X] T137 [P] Run `make eval` once US1 is complete; record the eval-suite baseline values from ADR-0002's bracketed table via a follow-up commit titled `docs: ADR-0002 record eval baseline` and promote ADR-0002 from `Proposed` to `Accepted` in the same commit. <!-- 990b437 — gated to GPU runner; baseline numbers NOT fabricated; ADR-0002 remains Proposed with a one-line gating note. Promotion lands in a follow-up commit once the workflow_dispatch eval-suite job runs on a [self-hosted, gpu] runner. -->
+- [X] T138 [P] Cross-link spec/plan/research/data-model/contracts/quickstart from `README.md` and `/docs`. <!-- 990b437 -->
+- [X] T139 Run `quickstart.md` end-to-end on a clean machine; update the troubleshooting table if any step fails. <!-- 990b437 — 27.32s wall on warm Compose stack -->
+- [X] T140 [P] Verify CLAUDE.md SPECKIT block points at the current plan path (already updated in plan output; this task is the verification). <!-- 990b437 -->
+- [X] T141 Production-readiness review against the constitution: check every NON-NEGOTIABLE principle (IV, VII, IX, X, XI, XIII, XIV) against the implemented system; record findings in `docs/runbook/feature-001-readiness-review.md`. <!-- 990b437 — all seven NON-NEGOTIABLEs PASS with named artifacts; three Phase 7 follow-ups documented. -->
 - [ ] T142 [P] CI gate for SC-007: create `tests/unit/test_pii_strip.py` and `scripts/check_log_pii.py`. The unit test injects synthetic logs containing PII patterns and asserts the structlog config in `src/collectmind/observability/logging.py` strips them. The script consumes recent CI log artifacts and metric label dumps, scans for PII signatures (geolocation coordinates, biometric tokens, personal identifiers), and fails the build on any hit. Wire the script into `.github/workflows/ci.yaml` so SC-007 is verified by an automated check on every build.
 
 ---

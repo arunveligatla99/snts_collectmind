@@ -122,6 +122,27 @@ Both require a migration (a new SQL file in `src/collectmind/registry/migrations
 
 **Why this matters**: An earlier draft of the dashboard JSON referenced three counter names (`policy_outcome_confirmed_total`, `..._ruled_out_total`, `..._no_data_total`) that do not exist in `metrics.py`. The label-on-one-counter design is more idiomatic Prometheus and lets the dashboard render any new outcome state (e.g., `evidence_insufficient` in feature 004) without a new metric registration. T105's bidirectional declared-metric check caught this drift during the red phase before the dashboard was rewritten.
 
+## 2026-05-11 — Phase 6 closure: feature 001 is shipped; three named Phase-7 follow-ups
+
+**Decision**: Phase 6 (T134–T141) closed with all seven NON-NEGOTIABLE constitutional principles PASS against named artifacts in `docs/runbook/feature-001-readiness-review.md`. Test bar at closure: 214 unit, 41 contract, 14 integration tests passing; line coverage 86.24% (over the 85% Principle IV floor); ruff check + ruff format --check + mypy --strict all clean; every CI guard green locally. Three Phase-7 follow-ups are explicitly named and inherit from real blockers (GPU runner availability for ADR-0002 baseline; first PR-tier CI run for SC-009 rolling-window; T142 PII-strip CI gate excluded from Phase 6 per the user's explicit task-set instruction).
+
+**Why this matters**: The closure document is the contract for what "feature 001 is shipped" means. Each NON-NEGOTIABLE is anchored to a specific artifact, test, or check — not to a vague "the test passes." The three follow-ups are tied to specific triggers (GPU runner, first CI run, separate task) rather than being open-ended. A future reviewer can verify the closure independently from this commit + the readiness-review document.
+
+## 2026-05-11 — Phase 6 closure: coverage from 33.65% to 86.24% by mocking, not by lowering the floor
+
+**Decision**: Phase 6 T134 brought coverage over the 85% Principle IV floor by writing twenty new test files that target pure-Python modules and HTTP routers via FastAPI TestClient + dependency-injection mocks (asyncpg, redis-py, aiokafka, httpx via respx). The 85% floor was NOT lowered or carved out by per-module exclusion; the entire `src/collectmind/` tree is measured.
+
+**Why this matters**: The constitution's Principle IV says "85 percent line coverage on application code, measured by pytest-cov, enforced in CI." Two paths could have closed the gap: (a) refactor integration tests to run in-process via TestClient so they contribute to coverage, or (b) write unit tests with mocks. Path (a) breaks Principle II ("no mocked subsystems where a real one is feasible") because the integration tests deliberately exercise the real local stack via HTTP. Path (b) keeps Principle II intact AND honors Principle IV by adding *unit* tests for the in-process paths the integration tier covers via HTTP. The right answer was (b); the test pyramid widens at the unit tier and stays narrow at the integration tier, which is the standard shape.
+
+## 2026-05-11 — Phase 6 closure: two latent Phase-1 bugs surfaced by the coverage work
+
+**Decision**: T134 surfaced two latent bugs that the existing test bar didn't catch:
+
+1. `observability/dashboard_provisioner.py`'s `declared_metric_names()` didn't honor `prometheus_client.Counter`'s `_total` suffix stripping. The Phase 4 T105 dashboard contract test had the SAME bug and fixed it inline (the test file did its own metric-name normalization). The provisioner module shipped the buggy version until Phase 6; the new `tests/unit/test_dashboard_provisioner.py` surfaces it via a real dashboard validation.
+2. `scripts/check_no_todo_fixme.py` excluded `.venv` only as a bare path component (`if part == ".venv"`). The local virtualenv lives at `.venv-test`, which never matched. The first standalone invocation of the script (in Phase 6 sanity-checking) found 17 TODO markers — all inside `.venv-test`'s third-party packages. Phase 6 rewrote the exclusion to match the `.?venv*` prefix family and added a per-file exclude for `.pre-commit-config.yaml` (legitimately names the hook id `no-todo-fixme`).
+
+**Why this matters**: Both bugs are perfect examples of why coverage matters as a forcing function, not just as a number. The dashboard provisioner module had 0% coverage before Phase 6 — it shipped buggy and nobody knew because nothing exercised it. Writing the test surfaced the bug. The Phase 6 closure document calls these out explicitly so future reviewers can see that the coverage work is not just box-ticking.
+
 ## 2026-05-11 — Phase 5 closure: T128 ECS execution role intentionally does NOT have Secrets Manager read
 
 **Decision**: `infra/terraform/secrets/main.tf` grants `secretsmanager:GetSecretValue` to the orchestration-api task role only, not to the ECS execution role. The task definition does NOT use `valueFrom: secretsmanager` shapes; the application code fetches secrets at runtime via the AWS SDK using the task role's credentials.
