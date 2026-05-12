@@ -141,14 +141,14 @@ Single project with multi-module Python service. Source under `src/collectmind/`
 
 ### Phase 11.b — Implementation
 
-- [ ] T267 [US3] Update `src/collectmind/cache/hot_store.py`'s `set(tenant_id, vehicle_id, signal_name, value)` to write the new key shape unconditionally. Made green by T264. FR-018 / ADR-0008 Part 5.
-- [ ] T268 [US3] Update `src/collectmind/cache/hot_store.py`'s `get(tenant_id, vehicle_id, signal_name)` to prefer the new key shape and fall back to the legacy shape for the rollover window; gated by a `HOT_STORE_LEGACY_FALLBACK_ENABLED` env var defaulting to `true`. Made green by T265. ADR-0008 Part 5.
-- [ ] T269 [US3] Update `src/collectmind/ingest/telemetry_writer.py` and `src/collectmind/feedback/worker.py` to propagate `tenant_id` to every hot-store call. FR-018 / FR-008.
-- [ ] T270 [US3] Add the post-rollover Fatal-error guard in `hot_store.py`: when `HOT_STORE_LEGACY_FALLBACK_ENABLED=false`, any code path that observes a legacy-shape key raises `LegacyKeyShapeError` (Fatal) and writes an audit row. Made green by T266. FR-020.
+- [X] T267 [US3] Update `src/collectmind/cache/hot_store.py`'s `set(tenant_id, vehicle_id, signal_name, value)` to write the new key shape unconditionally. Made green by T264. FR-018 / ADR-0008 Part 5.
+- [X] T268 [US3] Update `src/collectmind/cache/hot_store.py`'s `get(tenant_id, vehicle_id, signal_name)` to prefer the new key shape and fall back to the legacy shape for the rollover window; gated by a `HOT_STORE_LEGACY_FALLBACK_ENABLED` env var defaulting to `true`. Made green by T265. ADR-0008 Part 5.
+- [X] T269 [US3] Update `src/collectmind/ingest/telemetry_writer.py` and `src/collectmind/feedback/worker.py` to propagate `tenant_id` to every hot-store call. FR-018 / FR-008.
+- [X] T270 [US3] Add the post-rollover Fatal-error guard in `hot_store.py`: when `HOT_STORE_LEGACY_FALLBACK_ENABLED=false`, any code path that observes a legacy-shape key raises `LegacyKeyShapeError` (Fatal) and writes an audit row. Made green by T266. FR-020.
 
 ### Phase 11.c — Verification gate
 
-- [ ] T271 [US3] Run every Phase 11.a test against the real local stack with the TTL set to a short value (so the rollover window is testable in seconds). Assert: 0 failures. SC-006 latency budget preserved within 10% of the feature-001 baseline (measured by the existing hot-store-read load profile). SC-006 / Principle IV.
+- [X] T271 [US3] Run every Phase 11.a test against the real local stack with the TTL set to a short value (so the rollover window is testable in seconds). Assert: 0 failures. SC-006 latency budget preserved within 10% of the feature-001 baseline (measured by the existing hot-store-read load profile). SC-006 / Principle IV.
 
 **Checkpoint**: US3 complete. Hot-store keys carry tenant prefix; rollover path tested; legacy-shape guard ready for the Phase 14 cleanup PR.
 
