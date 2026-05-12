@@ -125,3 +125,49 @@ Rejected per the build-time-impossibility argument in §Decision Part 5.
 - [`specs/002-multi-tenant-isolation/contracts/openapi/audit-admin.v1.yaml`](../../specs/002-multi-tenant-isolation/contracts/openapi/audit-admin.v1.yaml)
 - Constitutional principles X, IX, XVII at [`.specify/memory/constitution.md`](../../.specify/memory/constitution.md)
 - Feature-001 readiness review (Principle X carry-forward) at [`docs/runbook/feature-001-readiness-review.md`](../runbook/feature-001-readiness-review.md)
+
+---
+
+## Addendum (Phase 9.b, 2026-05-11): PERMISSIVE baseline + RESTRICTIVE filter pattern
+
+**Status**: Accepted addendum.
+
+**Context**: Phase 9.b's first verification cycle surfaced a Postgres RLS semantic that wasn't captured in the original draft of Part 1. Migration 012 (as originally written) replaced the feature-001 PERMISSIVE policies with RESTRICTIVE-only policies. Under the non-BYPASSRLS `collectmind_tenant` role (provisioned by migration 017), every SELECT returned zero rows — including for the requesting tenant's own data. The fix is structural, not behavioural; it's recorded here so future migrations don't repeat the mistake.
+
+**Postgres RLS semantic (load-bearing)**:
+
+```
+visible_rows = (ANY permissive USING(true) matches) AND (EVERY restrictive USING(true) matches)
+```
+
+If a table has only RESTRICTIVE policies, the `(ANY permissive...)` clause has nothing to match against; the AND short-circuits to `false`; NO rows are visible to any non-table-owner role. The BYPASSRLS superuser (`collectmind`) doesn't see this failure because BYPASSRLS skips the policy engine entirely, so the bug stayed hidden during Phase 8 verification where every connection was the superuser.
+
+**Canonical pattern (binding for every future tenant-scoped table)**:
+
+```sql
+-- 1. Baseline PERMISSIVE allow-all. The AND-combiner's permissive input. Without this,
+-- a non-BYPASSRLS role sees zero rows even under a correct tenant context.
+CREATE POLICY <table>_permissive_baseline ON <table> FOR ALL USING (true) WITH CHECK (true);
+
+-- 2. RESTRICTIVE per-tenant filter. The AND-combiner's restrictive input. Defends against
+-- missing-context (current_setting NULL or empty) and wrong-context (tenant_id mismatch).
+CREATE POLICY <table>_restrictive ON <table> AS RESTRICTIVE
+  USING (
+    current_setting('app.tenant_id', true) IS NOT NULL
+    AND current_setting('app.tenant_id', true) <> ''
+    AND tenant_id = current_setting('app.tenant_id', true)
+  )
+  WITH CHECK (
+    current_setting('app.tenant_id', true) IS NOT NULL
+    AND current_setting('app.tenant_id', true) <> ''
+    AND tenant_id = current_setting('app.tenant_id', true)
+  );
+```
+
+Effective visibility: `(all rows) AND (rows where tenant_id matches GUC)` = the requesting tenant's rows. Missing or wrong GUC returns zero rows by the RESTRICTIVE clause.
+
+**`FOR SELECT`-scoped tables** (`tenant_config`, `tenant_vehicles`, `tenant_vehicles_history`): use `FOR SELECT USING (true)` on the baseline and `FOR SELECT USING (...)` on the RESTRICTIVE filter. INSERT/UPDATE/DELETE remain denied for non-service-principal roles by absence of any permissive policy on those operations (Postgres default = deny).
+
+**Verification posture**: every future migration that adds a tenant-scoped table MUST follow this pattern AND ship an integration test (modeled on `tests/integration/test_rls_restrictive.py`) that asserts (a) missing-context returns 0 rows, (b) wrong-context returns 0 rows, (c) own-context returns the row. The test MUST run under the `collectmind_tenant` role via `SET LOCAL ROLE` so RLS actually enforces.
+
+**Why this lives in ADR-0007** rather than its own ADR: the RESTRICTIVE policy posture IS the ADR-0007 decision; this addendum corrects the implementation pattern. It does not change the decision (the RESTRICTIVE-on-every-tenant-scoped-table contract from Part 1 stands). The pattern is also the worked example called out in [`docs/DECISIONS.md`](../DECISIONS.md) 2026-05-11 entry as the canonical Postgres-RLS surprise.

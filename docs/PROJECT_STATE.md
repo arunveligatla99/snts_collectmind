@@ -110,6 +110,13 @@ mypy src/collectmind                                         # T135 part 2
 
 Feature 002's scope per Phase 1's plan: tighten RLS from permissive to restrictive on every tenant-scoped table; add per-tenant rate limiting at ingress; tighten the Redis hot-store key shape from `vehicle_id:signal_name` to `tenant_id:vehicle_id:signal_name`; tighten the deployment client's tenant scoping. The composite finding key `(tenant_id, finding_id)` and the JWT `tenant_id` claim already exist from day one per Clarifications Q1.
 
+## Feature 002 deferred items (named; not silent)
+
+| Item | Source | Reason / Gating condition |
+|---|---|---|
+| **T244 Terraform `null_resource` for migration runner invocation** | `specs/002-multi-tenant-isolation/tasks.md` Phase 9.b T244 | Phase 9.b shipped the migration runner as a Python module (`src/collectmind/registry/migrations/runner.py`) with an opt-in startup hook in `app.py` (`MIGRATIONS_AUTO_APPLY=true`). The Terraform `null_resource` that invokes the runner from CI/CD against the deployed RDS Postgres is deferred to Phase 14 polish — it requires a Terraform-side decision (one-shot `local-exec` vs sidecar-init-container vs ECS task with `dependsOn`) that's better made alongside the readiness review than mid-implementation. Gating: lands in Phase 14 as part of T294's readiness review. |
+| **Operator-issuer JWKS host-DNS resolution in unit tests** | `tests/unit/test_operator_principal.py` (2 skipped tests) | Host-side Python can't resolve `operator-issuer:8088` (the Compose-internal hostname). 2 unit tests skipped with explicit reason; refactor to FastAPI TestClient + in-memory JWKS lands in Phase 14 polish alongside the readiness review. Gating: Phase 14 polish; not a security regression (the same property is exercised live via the running orchestration-api in T232). |
+
 ## What is deferred (named gaps; not silent)
 
 | Item | Source | Reason |

@@ -199,6 +199,22 @@ Both require a migration (a new SQL file in `src/collectmind/registry/migrations
 
 **Why this matters**: A fabricated baseline that "looks plausible" would propagate through every subsequent eval cycle as the comparison anchor — every regression test would measure drift against a number that was never observed. The cost of fabricating once is exponentially worse than the cost of recording the gating condition and waiting for the real run. This sets a project-wide pattern: when a measurement requires infrastructure that isn't available in the current session, the right move is to document the gating condition in-place, not to estimate. Every numeric claim in an ADR, runbook, or readiness review must be traceable to a real run.
 
+## 2026-05-11 — Phase 9.b: Postgres RLS RESTRICTIVE-only is a quiet zero-rows trap
+
+**Decision**: Every tenant-scoped table that ships RLS in CollectMind from feature 002 onward MUST carry BOTH a `PERMISSIVE USING (true)` baseline policy AND the RESTRICTIVE per-tenant filter. The shape is recorded as a canonical addendum in ADR-0007. Migrations 012 (tenant directory + finding/policy/audit/telemetry/erasure), 014 (tenant_config), and 015 (tenant_vehicles + history) all conform to the pattern after the Phase 9.b correction.
+
+**Worked example**: Phase 9.b's first verification cycle hit a textbook Postgres RLS surprise. Migration 012 (as originally written) dropped feature-001's permissive policies and replaced them with RESTRICTIVE-only filters. Under the `collectmind` BYPASSRLS superuser (the only role exercised in Phase 8), the change appeared correct — `BYPASSRLS` skips the policy engine entirely, so the verification cycle saw rows. Under the non-BYPASSRLS `collectmind_tenant` role provisioned by migration 017 (the role the orchestration-api drops into via SET LOCAL ROLE), the same SELECT returned zero rows even with the correct `app.tenant_id` GUC set. The Postgres semantic at play:
+
+```
+visible_rows = (ANY permissive USING(true) matches) AND (EVERY restrictive USING(true) matches)
+```
+
+A table with only RESTRICTIVE policies has no permissive input to the AND combiner, so the AND short-circuits to `false` and NO rows are visible. The fix is to add a `PERMISSIVE USING (true)` baseline alongside every RESTRICTIVE filter; the baseline supplies the AND combiner's permissive input, and the RESTRICTIVE filter then narrows to the requesting tenant's rows.
+
+**Why this matters**: This is the kind of structural bug that survives unit tests + Phase 8 verification (where every connection is the superuser BYPASSRLS path) and only surfaces when a real non-BYPASSRLS connection enters the picture. The Phase 9.b T245 verification gate caught it; the fix landed in the same phase. The canonical pattern is recorded in ADR-0007's Phase-9.b addendum so future tenant-scoped tables don't repeat the mistake. The integration test `tests/integration/test_rls_restrictive.py` enforces the three-assertion contract (missing-context = 0 rows, wrong-context = 0 rows, own-context = 1 row) under the `collectmind_tenant` role, which is the structural guard that prevents regression.
+
+**Cost of the surprise**: ~30 minutes of debug + one migration rewrite per affected table. The win: every future migration that adds a tenant-scoped table has the pattern named and the test template ready. The integration test suite is the canonical proof that the pattern holds.
+
 ## 2026-05-11 — Phase 6 closure: T136 and T139 record measured numbers, not budgets, as the documentation pattern
 
 **Decision**: Phase 6 T136 (dashboard-lag SLO measurement) and T139 (quickstart end-to-end re-run) both record the *measured* wall-clock numbers from real local runs into the corresponding documentation artifacts (`observability/runbooks/slo-006-dashboard-lag.md` for T136; `docs/runbook/feature-001-readiness-review.md` and `docs/PROJECT_STATE.md` for T139). T136 records max 2.11 s / mean 1.98 s over 5 publications against the SC-006 10 s ceiling. T139 records 27.32 s end-to-end on a warm Compose stack against the SC-008 600 s budget. Both entries include the methodology (sample size, polling cadence, what "warm stack" means) so the measurement is reproducible.
