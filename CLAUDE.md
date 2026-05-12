@@ -5,7 +5,7 @@ This file is the entry point for any Claude Code session opened against this rep
 <!-- SPECKIT START -->
 **Feature 001 — `policy-loop-vertical-slice` — is shipped** (`990b437` + `a49939e`). Closure artifact at [`docs/runbook/feature-001-readiness-review.md`](docs/runbook/feature-001-readiness-review.md): every NON-NEGOTIABLE constitutional principle (IV, VII, IX, X, XI, XIII, XIV) is PASS with a named artifact.
 
-**Feature 002 — `multi-tenant-isolation` — MID-FLIGHT at Phase 12 of 14** (branch `002-multi-tenant-isolation`; HEAD `e48faed`). Phases 8, 9, 10, 11, 12 closed. Phase 13 (observability cross-cutting, T280-T284) is the next phase. Phase 14 (polish + closure, T285-T296) follows. Phase status table at [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
+**Feature 002 — `multi-tenant-isolation` — MID-FLIGHT at Phase 13 of 14** (branch `002-multi-tenant-isolation`; HEAD `1e6f76e`). Phases 8, 9, 10, 11, 12, 13 closed. Phase 14 (polish + closure, T285-T296) is the only remaining phase. Phase status table at [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
 
 Active feature artifacts (feature 002):
 
@@ -15,7 +15,7 @@ Active feature artifacts (feature 002):
 - Data model: `specs/002-multi-tenant-isolation/data-model.md`
 - Contracts: `specs/002-multi-tenant-isolation/contracts/` (audit-admin.v1.yaml NEW; orchestration-api + query-api delta files for v1.1.0)
 - Quickstart: `specs/002-multi-tenant-isolation/quickstart.md`
-- Tasks: `specs/002-multi-tenant-isolation/tasks.md` (T200-T279 closed; T280-T296 remain)
+- Tasks: `specs/002-multi-tenant-isolation/tasks.md` (T200-T284 closed; T285-T296 remain)
 
 Feature 001 artifacts remain load-bearing as the inherited baseline (Spec Dependencies §):
 
