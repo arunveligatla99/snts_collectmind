@@ -42,3 +42,10 @@ class HotStore:
         if self._client is None:
             raise RuntimeError("redis client is not initialized")
         await self._client.set(f"{vehicle_id}:{signal_name}", value, ex=self._default_ttl)
+
+    @property
+    def client(self) -> AsyncRedis:
+        """Direct access to the underlying redis-py client (used by ratelimit middleware)."""
+        if self._client is None:
+            raise RuntimeError("redis client is not initialized")
+        return self._client

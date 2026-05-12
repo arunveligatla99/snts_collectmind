@@ -146,8 +146,11 @@ def test_reject_when_empty(script_sha: str) -> None:
         assert int(result[0]) == 1, f"call {i + 1} should allow (burst not exhausted)"
     # Next call at same t=0 must reject (no time elapsed = no refill).
     result = client.evalsha(script_sha, 1, key, 0, sustained_rps, burst_capacity)
-    decision, retry_hint = int(result[0]), int(result[1])
+    # Lua returns {decision, remaining, retry_after_ms}. On reject, remaining=0 and the
+    # retry_after_ms sits at index 2 (3-tuple shape per ADR-0008 Part 2).
+    decision, remaining, retry_hint = int(result[0]), int(result[1]), int(result[2])
     assert decision == 0, "burst exhausted at t=0 must reject"
+    assert remaining == 0, f"reject must report 0 remaining tokens; got {remaining}"
     # Retry hint is in milliseconds; with sustained_rps=10 we expect ~100 ms to next token.
     assert retry_hint > 0, f"reject must include positive retry hint; got {retry_hint}"
     assert retry_hint <= 1000, f"retry hint should be ~100 ms; got {retry_hint}"

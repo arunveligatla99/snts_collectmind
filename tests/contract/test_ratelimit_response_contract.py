@@ -59,9 +59,49 @@ def _metric_value(metric_name: str, label_match: str | None = None) -> int:
     return total
 
 
+def _provision_low_rate_limit(tenant: str, sustained: int = 1, burst: int = 2) -> None:
+    """Lower tenant-A's rate limit so a sequential httpx loop can drive over."""
+    import subprocess
+
+    sql = f"""
+    INSERT INTO tenant_config (tenant_id, inbound_sustained_rps, inbound_burst_capacity,
+      query_sustained_rps, query_burst_capacity, updated_by_subject)
+    VALUES ('{tenant}', {sustained}, {burst}, {sustained}, {burst}, 'svc-contract-test')
+    ON CONFLICT (tenant_id) DO UPDATE SET
+      inbound_sustained_rps = EXCLUDED.inbound_sustained_rps,
+      inbound_burst_capacity = EXCLUDED.inbound_burst_capacity,
+      updated_by_subject = EXCLUDED.updated_by_subject;
+    """
+    subprocess.run(
+        ["docker", "exec", "-i", "collectmind-postgres", "psql", "-U", "collectmind",
+         "-d", "collectmind"],
+        input=sql, capture_output=True, text=True, timeout=10,
+    )
+    # Wait for the LISTEN/NOTIFY-driven cache invalidation (worst case: 5s TTL fallback).
+    time.sleep(6)
+
+
+def _clear_rate_limit_override(tenant: str) -> None:
+    import subprocess
+    subprocess.run(
+        ["docker", "exec", "-i", "collectmind-postgres", "psql", "-U", "collectmind",
+         "-d", "collectmind"],
+        input=f"DELETE FROM tenant_config WHERE tenant_id = '{tenant}';",
+        capture_output=True, text=True, timeout=10,
+    )
+
+
 def test_rate_limited_request_returns_429_with_retry_after_header() -> None:
-    """Burst above the FR-012 default; assert at least one 429 with Retry-After header."""
+    """Burst above the configured limit; assert at least one 429 with Retry-After header."""
     require_local_stack()
+    _provision_low_rate_limit(TENANT_A, sustained=1, burst=2)
+    try:
+        _run_429_assertion()
+    finally:
+        _clear_rate_limit_override(TENANT_A)
+
+
+def _run_429_assertion() -> None:
     token = mint_tenant_token(TENANT_A)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     body = {
@@ -75,9 +115,8 @@ def test_rate_limited_request_returns_429_with_retry_after_header() -> None:
         "vehicle_scope": [],
         "upstream_confidence": 0.5,
     }
-    # Burst 50 requests in tight loop. With FR-012 default 2000 r/s, that won't trigger.
-    # Phase 10.b SHOULD provide a fixture or env var to lower the limit for this test.
-    # Until then, the test fails because no 429 materializes — right-reason red.
+    # With sustained=burst=5, tenant-A's bucket holds at most 5 tokens. Sequential httpx
+    # at ~10 req/s drains the bucket, then hits 429.
     saw_429 = False
     for _ in range(50):
         response = httpx.post(
@@ -112,10 +151,10 @@ def test_rate_limited_request_returns_429_with_retry_after_header() -> None:
 def test_rate_limited_increments_throttled_counter_not_redis_unavailable() -> None:
     """Watch-point 3: 429 fires throttled_total, NOT redis_unavailable_total."""
     require_local_stack()
+    _provision_low_rate_limit(TENANT_A, sustained=1, burst=2)
     before_throttled = _metric_value(THROTTLED_METRIC)
     before_unavailable = _metric_value(REDIS_UNAVAILABLE_METRIC)
 
-    # Trigger a 429 (best-effort; the test_rate_limited_request_returns_429 already does the work).
     token = mint_tenant_token(TENANT_A)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     body = {
@@ -129,13 +168,16 @@ def test_rate_limited_increments_throttled_counter_not_redis_unavailable() -> No
         "vehicle_scope": [],
         "upstream_confidence": 0.5,
     }
-    for _ in range(50):
-        httpx.post(
-            f"{ORCHESTRATION_BASE_URL}/api/v1/findings",
-            headers=headers,
-            json=body,
-            timeout=5.0,
-        )
+    try:
+        for _ in range(50):
+            httpx.post(
+                f"{ORCHESTRATION_BASE_URL}/api/v1/findings",
+                headers=headers,
+                json=body,
+                timeout=5.0,
+            )
+    finally:
+        _clear_rate_limit_override(TENANT_A)
 
     after_throttled = _metric_value(THROTTLED_METRIC)
     after_unavailable = _metric_value(REDIS_UNAVAILABLE_METRIC)

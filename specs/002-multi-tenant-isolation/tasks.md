@@ -109,19 +109,19 @@ Single project with multi-module Python service. Source under `src/collectmind/`
 
 ### Phase 10.b — Implementation
 
-- [ ] T254 [US2] Create `src/collectmind/ratelimit/token_bucket.lua` per ADR-0008 Part 2. Atomic check-and-deduct in one Redis round trip; returns `(decision, remaining_or_retry_after_ms)`. Made green by T246.
-- [ ] T255 [US2] Create `src/collectmind/ratelimit/middleware.py` FastAPI middleware: extract `tenant_id` from verified JWT (after auth); call `token_bucket.lua` with parameters from `config_cache`; on allow → pass through; on reject → return 429 + Retry-After; on Redis failure → return 503 + Retry-After: 1 per failure-closed posture. Made green by T247 + T249. FR-010 / FR-011 / FR-017 / ADR-0008 Part 3.
-- [ ] T256 [US2] Complete `src/collectmind/ratelimit/config_cache.py` (started in T234). Implement the asyncio `LISTEN/NOTIFY` consumer; LRU cache (size 1024, TTL 5s). Made green by T248. ADR-0008 Part 4.
-- [ ] T257 [US2] Create `src/collectmind/ratelimit/defaults.py` with FR-012's default values as module-level constants. Made green by T251. FR-012.
-- [ ] T258 [US2] Create `src/collectmind/ratelimit/metrics.py` registering the Prometheus metrics from ADR-0008 Part 6 (`collectmind_ratelimit_decision_total{tenant_id,endpoint,decision}`, `collectmind_ratelimit_redis_unavailable_total{endpoint}`). Wire into `src/collectmind/observability/metrics.py`'s declared-metric registry so the dashboard contract test (T105 from feature 001) picks them up. Principle V.
-- [ ] T259 [US2] Wire the middleware into `src/collectmind/app.py` between the auth dependency and every router. Ensure `/health` and `/ready` bypass it per FR-017.
-- [ ] T260 [US2] Create `observability/runbooks/ratelimit-sustained-throttle.md` with the canonical four sections (Symptoms, Dashboard, Mitigation, Escalation per the T106 + T113 enforcement pattern from feature 001). Inline FR-012a's binding rate-limit-versus-SLO distinction so future operators do not lower the limit to "match the SLO." FR-016 / FR-012a / Principle V.
-- [ ] T261 [US2] Create `observability/runbooks/ratelimit-redis-unavailable.md` documenting the failure-closed posture, the operator's failover procedure, and the alert routing. ADR-0008 Part 3 / Principle V.
-- [ ] T262 [P] [US2] Add per-tenant rate-limit panels to `observability/grafana/dashboards/collectmind.json`: `sum by (tenant_id) (rate(collectmind_ratelimit_decision_total{decision="reject"}[1m]))` and the throttle-rate-by-endpoint heatmap. Principle V.
+- [X] T254 [US2] Create `src/collectmind/ratelimit/token_bucket.lua` per ADR-0008 Part 2. Atomic check-and-deduct in one Redis round trip; returns `(decision, remaining_or_retry_after_ms)`. Made green by T246.
+- [X] T255 [US2] Create `src/collectmind/ratelimit/middleware.py` FastAPI middleware: extract `tenant_id` from verified JWT (after auth); call `token_bucket.lua` with parameters from `config_cache`; on allow → pass through; on reject → return 429 + Retry-After; on Redis failure → return 503 + Retry-After: 1 per failure-closed posture. Made green by T247 + T249. FR-010 / FR-011 / FR-017 / ADR-0008 Part 3.
+- [X] T256 [US2] Complete `src/collectmind/ratelimit/config_cache.py` (started in T234). Implement the asyncio `LISTEN/NOTIFY` consumer; LRU cache (size 1024, TTL 5s). Made green by T248. ADR-0008 Part 4.
+- [X] T257 [US2] Create `src/collectmind/ratelimit/defaults.py` with FR-012's default values as module-level constants. Made green by T251. FR-012.
+- [X] T258 [US2] Create `src/collectmind/ratelimit/metrics.py` registering the Prometheus metrics from ADR-0008 Part 6 (`collectmind_ratelimit_decision_total{tenant_id,endpoint,decision}`, `collectmind_ratelimit_redis_unavailable_total{endpoint}`). Wire into `src/collectmind/observability/metrics.py`'s declared-metric registry so the dashboard contract test (T105 from feature 001) picks them up. Principle V.
+- [X] T259 [US2] Wire the middleware into `src/collectmind/app.py` between the auth dependency and every router. Ensure `/health` and `/ready` bypass it per FR-017.
+- [X] T260 [US2] Create `observability/runbooks/ratelimit-sustained-throttle.md` with the canonical four sections (Symptoms, Dashboard, Mitigation, Escalation per the T106 + T113 enforcement pattern from feature 001). Inline FR-012a's binding rate-limit-versus-SLO distinction so future operators do not lower the limit to "match the SLO." FR-016 / FR-012a / Principle V.
+- [X] T261 [US2] Create `observability/runbooks/ratelimit-redis-unavailable.md` documenting the failure-closed posture, the operator's failover procedure, and the alert routing. ADR-0008 Part 3 / Principle V.
+- [X] T262 [P] [US2] Add per-tenant rate-limit panels to `observability/grafana/dashboards/collectmind.json`: `sum by (tenant_id) (rate(collectmind_ratelimit_decision_total{decision="reject"}[1m]))` and the throttle-rate-by-endpoint heatmap. Principle V.
 
 ### Phase 10.c — Verification gate
 
-- [ ] T263 [US2] Run every Phase 10.a test against the real local stack. Assert: 0 failures; SC-003 + SC-004 quitting hooks green in the smoke load profile. Capture latency-regression measurement against feature-001 SC-001 baseline for SC-005 reporting. Principle IV / Principle XI.
+- [X] T263 [US2] Run every Phase 10.a test against the real local stack. Assert: 0 failures; SC-003 + SC-004 quitting hooks green in the smoke load profile. Capture latency-regression measurement against feature-001 SC-001 baseline for SC-005 reporting. Principle IV / Principle XI.
 
 **Checkpoint**: US2 complete. Per-tenant rate limit honored; noisy tenant isolated; Redis-outage failure-closed posture verified.
 

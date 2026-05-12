@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from collectmind.audit_admin.api import router as audit_admin_router
-from collectmind.auth.dependencies import get_settings
+from collectmind.auth.dependencies import get_settings, get_verifier
 from collectmind.config import Settings
 from collectmind.deployer.signing import LocalKeySigner
 from collectmind.deployer.simulator import SimulatorCollectorAIClient
@@ -46,6 +46,8 @@ from collectmind.observability.metrics import (
 )
 from collectmind.observability.otel import init_otel
 from collectmind.query.api import router as query_router
+from collectmind.ratelimit.config_cache import TenantConfigCacheConsumer
+from collectmind.ratelimit.middleware import RateLimitMiddleware
 from collectmind.redis.client import HotStore
 from collectmind.registry.audit import AuditEventWriter
 from collectmind.registry.db import Database
@@ -136,6 +138,10 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     tenant_config_repo = TenantConfigRepository(db)
     tenant_vehicles_repo = TenantVehiclesRepository(db)
 
+    # T256: Postgres LISTEN tenant_config_changed consumer for cache invalidation.
+    tenant_config_consumer = TenantConfigCacheConsumer(settings.postgres_dsn, tenant_config_repo)
+    await tenant_config_consumer.start()
+
     signing_key_path = Path(os.environ.get("SIGNING_KEY_PATH", "./models/dev-signing.key"))
     signer = LocalKeySigner.from_path(signing_key_path, key_id="dev-key-1")
 
@@ -182,6 +188,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.schema_checker = SchemaVersionChecker(supported_major=1)
     app.state.tenant_config_repo = tenant_config_repo
     app.state.tenant_vehicles_repo = tenant_vehicles_repo
+    app.state.tenant_config_consumer = tenant_config_consumer
 
     feedback_task = asyncio.create_task(feedback.run_forever())
 
@@ -201,6 +208,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             await feedback_task
         except (asyncio.CancelledError, Exception):
             pass
+        await tenant_config_consumer.stop()
         await kafka.stop()
         await redis.close()
         await db.close()
@@ -264,7 +272,46 @@ class _MetricsMiddleware(BaseHTTPMiddleware):
 
 
 app = FastAPI(title="CollectMind Orchestration API", version="0.1.0", lifespan=_lifespan)
+
+
+# T259: middleware ordering. Starlette/FastAPI runs middlewares in REVERSE-add order on the
+# request path: the LAST .add_middleware() wraps the OUTERMOST. We want metrics on every
+# request (innermost — runs after rate-limit decisions), and rate-limit on every authenticated
+# tenant request. Add order:
+#   1. _MetricsMiddleware (innermost; counts every request including 429/503)
+#   2. RateLimitMiddleware (outer; runs JWT verification + token-bucket; short-circuits on
+#      auth failure with 401 before the limiter is touched per FR-017)
+# Inbound dispatch order: RateLimit → _Metrics → route handler.
 app.add_middleware(_MetricsMiddleware)
+
+
+@app.middleware("http")
+async def _ratelimit_dispatch(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    """Wires the rate-limit middleware against the live app state. Wrapped as an
+    `@app.middleware` (not `add_middleware`) because the dependencies are
+    constructed in the lifespan handler; this lets us defer their lookup until the
+    first request, by which time `_lifespan` has populated `app.state`.
+    """
+    state = request.app.state
+    if getattr(state, "ratelimit_disabled", False):
+        # Test fixtures (TestClient without lifespan) set this flag so the middleware
+        # short-circuits without trying to construct a real verifier or Redis client.
+        return await call_next(request)
+    middleware_obj: RateLimitMiddleware | None = getattr(state, "_ratelimit_middleware", None)
+    if middleware_obj is None:
+        if not hasattr(state, "redis") or not hasattr(state, "tenant_config_repo"):
+            return await call_next(request)
+        verifier = get_verifier()
+        middleware_obj = RateLimitMiddleware(
+            app=request.app,
+            verifier=verifier,
+            hot_store=state.redis,
+            tenant_config_repo=state.tenant_config_repo,
+        )
+        state._ratelimit_middleware = middleware_obj
+    return await middleware_obj.dispatch(request, call_next)
+
+
 app.include_router(ingest_router)
 app.include_router(query_router)
 app.include_router(erasure_router)
