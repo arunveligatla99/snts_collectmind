@@ -54,7 +54,7 @@ class SimulatorCollectorAIClient:
         now = datetime.now(tz=UTC)
         # Logical-time expiry: collection_window_hours from the payload, default 24h.
         window_value: object = payload.get("collection_window_hours", 24) if isinstance(payload, dict) else 24
-        window_hours = int(window_value) if isinstance(window_value, (int, float, str)) else 24
+        window_hours = int(window_value) if isinstance(window_value, int | float | str) else 24
         accel = float(os.environ.get("TIME_ACCELERATION_FACTOR", "1.0") or 1.0) or 1.0
         expires = now + timedelta(seconds=(window_hours * 3600) / accel)
         deployment_id = str(ulid.new())

@@ -38,6 +38,7 @@ class TelemetryGenerator:
         threshold = float(policy.get("confidence_threshold", 0.5))
         # Choose a value distribution aligned with the directive.
         if directive == "rule_out":
+
             def generator() -> float:
                 return max(0.0, threshold - self._random.uniform(0.2, 0.5))
         else:
