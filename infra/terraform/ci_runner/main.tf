@@ -29,9 +29,10 @@ variable "runner_security_group_id" {
   default = ""
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "github_runner_token_secret_arn" {
   type        = string
-  description = "Secrets Manager ARN holding the GitHub runner registration token."
+  description = "Secrets Manager ARN holding the GitHub runner registration token. Reserved for the workflow_dispatch runner-registration wiring (T120 follow-up); declared here so the root module wiring can be added without a module signature change."
   default     = ""
 }
 

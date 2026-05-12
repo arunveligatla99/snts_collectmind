@@ -21,7 +21,7 @@ logger = structlog.get_logger(__name__)
 class TelemetryGenerator:
     def __init__(self, db: Database) -> None:
         self._db = db
-        self._random = random.Random(0xBEAD)
+        self._random = random.Random(0xBEAD)  # nosec B311 - deterministic telemetry simulator, not security-sensitive
 
     async def simulate(
         self,

@@ -20,7 +20,7 @@ class SimulatorCollectorAIClient:
     ) -> None:
         self._inject_failure_rate = inject_failure_rate
         self._failure_status = failure_status
-        self._random = random.Random(seed if seed is not None else 0xDEADBEEF)
+        self._random = random.Random(seed if seed is not None else 0xDEADBEEF)  # nosec B311 - deterministic simulator, not security-sensitive
         self._inflight: dict[str, DeployResponse] = {}
 
     @classmethod

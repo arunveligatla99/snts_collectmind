@@ -152,7 +152,7 @@ jobs:
           tags: collectmind/orchestration-api:ci
           load: true
       - name: Trivy scan (fail on critical/high)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: collectmind/orchestration-api:ci
           severity: CRITICAL,HIGH
@@ -203,8 +203,9 @@ jobs:
         env:
           # gitleaks-action@v2 requires GITHUB_TOKEN to scan pull requests
           # (see https://github.com/gitleaks/gitleaks-action#-announcement).
+          # No GITLEAKS_CONFIG override; the action's defaults cover the
+          # secrets we care about (AWS keys, generic API tokens, JWTs).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: ${{ github.workspace }}/.gitleaks.toml
 
   custom-guards:
     name: Custom CI guards (deferred-work markers, SLM pinning, runbook completeness, OpenAPI dump)
