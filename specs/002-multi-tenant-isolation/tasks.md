@@ -212,7 +212,7 @@ Single project with multi-module Python service. Source under `src/collectmind/`
 - [X] T293 Hot-store legacy-shape cleanup: removed `HOT_STORE_LEGACY_FALLBACK_ENABLED` env var + `_legacy_fallback_enabled()` helper + `_legacy_key()` helper + `get_signal_for_tenant_strict()` variant from [`src/collectmind/redis/client.py`](../../src/collectmind/redis/client.py); legacy `get_signal`/`put_signal` now raise `LegacyKeyShapeError` unconditionally (defense-in-depth Fatal guard retained per Phase 14 review). Deleted `test_hot_store_key_rollover.py` (dual-read window gone). ADR-0008 Part 5.
 - [X] T294 Drafted [`docs/runbook/feature-002-readiness-review.md`](../../docs/runbook/feature-002-readiness-review.md). Every NON-NEGOTIABLE principle PASS with named artifacts. ADR-0007 + ADR-0009 promoted to Accepted; ADR-0008 stays Proposed with documented workflow_dispatch SC-002/SC-003 gating note (same pattern as ADR-0002's GPU-runner gating). Principle XVIII.
 - [X] T295 PROJECT_STATE feature-002 closure section (this commit). Final test bar: 329 unit / 17 contract / 24 targeted integration / 2 migration-rollback. Coverage 85.36%.
-- [X] T296 CLAUDE.md SPECKIT block flipped: feature 002 closed at HEAD `<closure-commit>`; ADR table flips 0007/0009 to Accepted, 0008 to Proposed-with-gating.
+- [X] T296 CLAUDE.md SPECKIT block flipped: feature 002 closed at HEAD `6b46c78`; ADR table flips 0007/0009 to Accepted, 0008 to Proposed-with-gating.
 
 **Checkpoint**: Feature 002 closed. Readiness review walks every NON-NEGOTIABLE with a named artifact; ADRs Accepted; quickstart re-runnable; CI green; coverage ≥ 85%.
 
