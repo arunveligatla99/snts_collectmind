@@ -135,9 +135,9 @@ Single project with multi-module Python service. Source under `src/collectmind/`
 
 ### Phase 11.a — Red-phase tests
 
-- [ ] T264 [P] [US3] Integration test for the new tenant-scoped key shape at `tests/integration/test_hot_store_key_shape.py`. Asserts writes after cutover land at `tenant_id:vehicle_id:signal_name`; asserts reads at the new shape hit; asserts cross-tenant collision impossible by construction. FR-018.
-- [ ] T265 [P] [US3] Integration test for the TTL-driven rollover at `tests/integration/test_hot_store_key_rollover.py`. Pre-seeds legacy-shape keys under TTL; asserts new-shape reads succeed for new writes; asserts legacy-shape fallback-reads succeed during the rollover window; asserts both branches resolve. ADR-0008 Part 5 / FR-019.
-- [ ] T266 [P] [US3] Integration test for legacy-shape refusal post-rollover at `tests/integration/test_hot_store_legacy_refused.py`. Once the rollover window closes (test simulates by toggling a flag), any read or write under the legacy shape raises a Fatal error class and produces an audit row. Guards the Phase 14 one-time-cleanup PR. FR-020.
+- [X] T264 [P] [US3] Integration test for the new tenant-scoped key shape at `tests/integration/test_hot_store_key_shape.py`. Asserts writes after cutover land at `tenant_id:vehicle_id:signal_name`; asserts reads at the new shape hit; asserts cross-tenant collision impossible by construction. FR-018.
+- [X] T265 [P] [US3] Integration test for the TTL-driven rollover at `tests/integration/test_hot_store_key_rollover.py`. Pre-seeds legacy-shape keys under TTL; asserts new-shape reads succeed for new writes; asserts legacy-shape fallback-reads succeed during the rollover window; asserts both branches resolve. ADR-0008 Part 5 / FR-019.
+- [X] T266 [P] [US3] Integration test for legacy-shape refusal post-rollover at `tests/integration/test_hot_store_legacy_refused.py`. Once the rollover window closes (test simulates by toggling a flag), any read or write under the legacy shape raises a Fatal error class and produces an audit row. Guards the Phase 14 one-time-cleanup PR. FR-020.
 
 ### Phase 11.b — Implementation
 
