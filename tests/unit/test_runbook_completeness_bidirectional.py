@@ -14,6 +14,12 @@ enforce a BIDIRECTIONAL invariant:
         ``docker-desktop-daemon-down.md``, ``slm-container-oom.md``,
         ``cpu-fallback-activation.md``, etc.).
 
+Per Phase 13 review decision: the orphan-runbook whitelist lives at
+``observability/runbooks/.orphan-whitelist.yaml`` (NOT in the Python script). The script
+loads the file at runtime; the test parameterizes the path so synthetic fixtures can
+substitute a private whitelist. The yaml-file shape is a single top-level ``whitelist:``
+key whose value is a list of basenames.
+
 This file pins the backward direction. Phase 13.b (T283) lands the implementation by
 adding a ``find_orphan_runbooks(rules_doc, runbook_dir, whitelist)`` function to
 ``scripts/check_runbook_completeness.py`` and wiring it into the ``check()`` entry point
@@ -116,8 +122,9 @@ def test_find_orphan_runbooks_respects_whitelist(tmp_path: Path) -> None:
     """Whitelist contract: operational-reference runbook pages (no alert by design) MUST
     be skipped when listed in the whitelist set passed by the caller.
 
-    The script's CI-mode whitelist is the canonical list; the test exercises the
-    parameter to prove the function honors it.
+    The runtime whitelist file lives at ``observability/runbooks/.orphan-whitelist.yaml``
+    per Phase 13 review decision; the test parameterizes the whitelist directly to prove
+    the function honors the contract independent of file location.
     """
     fn = _try_import_find_orphan_runbooks()
     if fn is None:
@@ -127,4 +134,33 @@ def test_find_orphan_runbooks_respects_whitelist(tmp_path: Path) -> None:
     orphans = fn({"groups": []}, tmp_path, whitelist={"operational-reference.md"})
     assert "operational-reference.md" not in orphans, (
         f"find_orphan_runbooks did not honor the whitelist; got {orphans}"
+    )
+
+
+def test_orphan_whitelist_file_exists_at_canonical_path() -> None:
+    """Phase 13 review decision: the orphan-runbook whitelist lives at
+    ``observability/runbooks/.orphan-whitelist.yaml``. The file MUST exist after T283
+    lands; the script loads it at runtime so the CI guard runs with no per-invocation
+    arguments.
+
+    The file's shape is a single top-level ``whitelist:`` key whose value is a list of
+    runbook basenames (e.g. ``slm-container-oom.md``).
+    """
+    whitelist_path = (
+        REPO_ROOT / "observability" / "runbooks" / ".orphan-whitelist.yaml"
+    )
+    assert whitelist_path.is_file(), (
+        f"Phase 13 T283 has not landed: orphan-whitelist file missing at "
+        f"{whitelist_path}. Per Phase 13 review the whitelist MUST live at this "
+        f"canonical path so contributors can update it without editing Python."
+    )
+    import yaml
+
+    doc = yaml.safe_load(whitelist_path.read_text(encoding="utf-8")) or {}
+    assert isinstance(doc, dict) and "whitelist" in doc, (
+        f"orphan-whitelist file shape invalid: expected top-level ``whitelist:`` key; "
+        f"got {list(doc.keys()) if isinstance(doc, dict) else type(doc).__name__}"
+    )
+    assert isinstance(doc["whitelist"], list), (
+        f"orphan-whitelist ``whitelist`` value MUST be a list; got {type(doc['whitelist']).__name__}"
     )

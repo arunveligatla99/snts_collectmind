@@ -59,14 +59,20 @@ REQUIRED_SLO_TAGS: tuple[str, ...] = (
 )
 
 
-# Feature 002 Phase 13 T280: five new alerts MUST be declared in rules.yaml. The set
+# Feature 002 Phase 13 T280: six new alerts MUST be declared in rules.yaml. The set
 # is binding — removing any one is a regression because it leaves an operational gap
 # named in the spec. Each alert name MUST match exactly (case-sensitive).
+#
+# BreakGlassInvoked + BreakGlassBurstInvocation are SPLIT (per Phase 13 review):
+#   - BreakGlassInvoked: severity=page, fires on any invocation (immediate visibility).
+#   - BreakGlassBurstInvocation: severity=critical, fires on 5-min rate > threshold per
+#     operator_subject. Two runbook pages, two distinct mitigation playbooks.
 REQUIRED_PHASE_13_ALERTS: tuple[str, ...] = (
-    "RatelimitSustainedThrottle",       # FR-016
-    "RatelimitRedisUnavailable",        # ADR-0008 Part 3 failure-CLOSED counter
-    "BreakGlassInvoked",                # SC-013 informational
-    "TenantConfigReloadStalled",        # tenant_config_cache LISTEN/NOTIFY lag
+    "RatelimitSustainedThrottle",       # FR-016 page
+    "RatelimitRedisUnavailable",        # ADR-0008 Part 3 failure-CLOSED counter page
+    "BreakGlassInvoked",                # SC-013 single-invocation page (immediate)
+    "BreakGlassBurstInvocation",        # SC-013 burst-rate critical (5-min)
+    "TenantConfigReloadStalled",        # SC-014 LISTEN/NOTIFY lag page
     "DeploymentTenantMismatch",         # SC-012 page-tier (feature 002 US4)
 )
 
@@ -186,32 +192,36 @@ def test_phase_13_alerts_declared_by_name() -> None:
     )
 
 
-def test_phase_13_alerts_carry_severity_critical_or_page() -> None:
-    """Phase 13 alerts inherit the feature-001 Phase 5 severity-tier discipline.
+def test_phase_13_alerts_carry_severity_strictly_pinned() -> None:
+    """Phase 13 severity tiers pin the operational page-or-critical distinction strictly.
 
-    `RatelimitSustainedThrottle`, `RatelimitRedisUnavailable`, `TenantConfigReloadStalled`,
-    `DeploymentTenantMismatch` MUST be `severity: page` (page-tier per FR-016/FR-024).
-    `BreakGlassInvoked` is informational and MAY be `severity: page` or `severity: critical`
-    depending on whether ops wants to page on every break-glass invocation; both values
-    are accepted here.
+    Per Phase 13 review decision (BreakGlass split):
+      - ``BreakGlassBurstInvocation``: severity=critical (5-min rate exceeds threshold).
+      - All others (``BreakGlassInvoked``, ``RatelimitSustainedThrottle``,
+        ``RatelimitRedisUnavailable``, ``TenantConfigReloadStalled``,
+        ``DeploymentTenantMismatch``): severity=page.
+
+    Feature-001 Phase 5 standardization is binding (page vs critical). The strict pin
+    means a future reshuffle that flips a page-tier alert to critical or vice versa
+    fails this test loudly rather than silently changing the operational page volume.
     """
     doc = _load_rules()
     rule_by_name = {alert: rule for _g, alert, rule in _iter_alerts(doc)}
-    page_required = {
-        "RatelimitSustainedThrottle",
-        "RatelimitRedisUnavailable",
-        "TenantConfigReloadStalled",
-        "DeploymentTenantMismatch",
+    expected_severity: dict[str, str] = {
+        "RatelimitSustainedThrottle": "page",
+        "RatelimitRedisUnavailable": "page",
+        "BreakGlassInvoked": "page",
+        "BreakGlassBurstInvocation": "critical",
+        "TenantConfigReloadStalled": "page",
+        "DeploymentTenantMismatch": "page",
     }
     failures: list[str] = []
-    for name in REQUIRED_PHASE_13_ALERTS:
+    for name, expected in expected_severity.items():
         rule = rule_by_name.get(name)
         if rule is None:
             # Covered by ``test_phase_13_alerts_declared_by_name``; skip here.
             continue
         severity = (rule.get("labels") or {}).get("severity")
-        if name in page_required and severity != "page":
-            failures.append(f"{name}: expected severity=page (FR-024/FR-016); got {severity!r}")
-        elif name == "BreakGlassInvoked" and severity not in {"page", "critical"}:
-            failures.append(f"BreakGlassInvoked: expected severity in (page, critical); got {severity!r}")
+        if severity != expected:
+            failures.append(f"{name}: expected severity={expected!r}; got {severity!r}")
     assert not failures, "Phase 13 severity-tier discipline violations:\n  - " + "\n  - ".join(failures)

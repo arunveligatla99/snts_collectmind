@@ -5,15 +5,18 @@ Pins three contracts that the Phase 13 T281 dashboard extension MUST satisfy:
     1. Three NEW Prometheus metric series are declared in
        ``src/collectmind/observability/metrics.py``:
          - ``collectmind_break_glass_invocation_total`` (labels: ``operator_subject``,
-           ``tenant_scope``, ``reason_code``) — drives the BreakGlassInvoked alert
-           AND the "break-glass volume per operator" dashboard panel.
+           ``reason_code``) — drives BreakGlassInvoked + BreakGlassBurstInvocation
+           alerts AND the "break-glass volume per operator" dashboard panel.
+           Per Phase 13 review: ``tenant_scope`` label REMOVED to bound cardinality;
+           the audit row is the system of record for which tenants the break-glass
+           touched. Metric is for invocation rate by operator + reason only.
          - ``collectmind_deployment_rejected_total`` (labels: ``policy_declared_tenant_id``,
            ``vehicle_owning_tenant_id``, ``reason``) — drives the DeploymentTenantMismatch
            alert AND the "deployment-rejected count per reason" dashboard panel.
          - ``collectmind_cross_tenant_access_attempt_total`` (labels: ``endpoint``,
            ``decision``) — drives the "cross-tenant access-attempt rate per endpoint"
-           dashboard panel. (No alert required at Phase 13; FR-009 ensures the metric
-           is PII-clean.)
+           dashboard panel. Per Phase 13 review: NO ALERT in Phase 13; counter exists
+           for dashboard signal + future analytics. FR-009 ensures metric is PII-clean.
     2. The shipped dashboard JSON
        (``observability/grafana/dashboards/collectmind-end-to-end.json``) references each
        of the three NEW metric series above PLUS the existing
@@ -105,4 +108,33 @@ def test_phase_13_dashboard_validate_returns_no_drift() -> None:
     assert not errors, (
         "dashboard_provisioner.validate_dashboard() returned errors:\n  - "
         + "\n  - ".join(errors)
+    )
+
+
+def test_cross_tenant_counter_has_no_alert_in_rules_yaml() -> None:
+    """Phase 13 review decision: ``collectmind_cross_tenant_access_attempt_total`` is a
+    DASHBOARD signal + future-analytics counter; it deliberately does NOT have an alert.
+
+    Pinning the no-alert decision in a test prevents future drift: a contributor who
+    later adds an alert against this counter (with good intentions) trips this test
+    and is forced to either justify the alert with a Phase-14-or-later ADR amendment
+    OR remove the alert.
+
+    Anchors: Phase 13 review decision (recorded in ``docs/DECISIONS.md``) / FR-009.
+    """
+    import yaml
+
+    rules_path = REPO_ROOT / "observability" / "prometheus" / "rules.yaml"
+    doc = yaml.safe_load(rules_path.read_text(encoding="utf-8")) or {}
+    offenders: list[str] = []
+    for group in doc.get("groups", []):
+        for rule in group.get("rules", []):
+            alert_name = rule.get("alert")
+            expr = rule.get("expr", "")
+            if alert_name and "collectmind_cross_tenant_access_attempt_total" in str(expr):
+                offenders.append(alert_name)
+    assert not offenders, (
+        f"Phase 13 review decision violated: "
+        f"``collectmind_cross_tenant_access_attempt_total`` MUST have no alert. "
+        f"Offenders: {offenders}. To add an alert, amend the decision via ADR."
     )
