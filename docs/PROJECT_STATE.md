@@ -15,23 +15,27 @@
 | Phase 11: US3 — Hot-store key tenancy (T264–T271) | Pure `_hot_store_key` helper; tenant-scoped read/write API; dual-read fallback during rollover window (new-shape FIRST, legacy on miss, env-gated); `LegacyKeyShapeError` Fatal guard post-rollover; hypothesis property test for structural cross-tenant key isolation | **Complete** | `2c93827` (tests red phase), `f460e7c` (impl) |
 | Phase 12: US4 — Deployment-client tenant scoping (T272–T279) | `ownership_cache.py` (write-through Redis + Postgres fallback, 1h TTL, failure-OPEN); `tenant_scope_check.py` (FIRST-gate validate_tenant_scope + Fatal `TenantVehicleMismatch`); `deployer/node.py` (`deploy_with_tenant_scope_check`: scope-check → atomic `kind=deployment_rejected` audit-row inside Fatal handler → re-raise; collector never invoked on mismatch); `deployment-tenant-mismatch.md` runbook | **Complete** | `707fb55` (tests red phase), `e48faed` (impl) |
 | Phase 13: Observability cross-cutting (T280-T284) | 6 alerts (BreakGlassInvoked split into single-invocation page + BreakGlassBurstInvocation critical; RatelimitSustainedThrottle, RatelimitRedisUnavailable, TenantConfigReloadStalled, DeploymentTenantMismatch); 3 new metric counters + 1 new gauge (operator_subject scoping; tenant_scope label dropped from break-glass counter per review); 4 dashboard panels (break-glass per operator, deployment-rejected per reason, cross-tenant access-attempts per endpoint NO-ALERT, rate-limit decision split per tenant); 3 new runbook pages; bidirectional CI guard with `.orphan-whitelist.yaml`; per-operator BreakGlassInvoked Alertmanager route | **Complete** | `03a0a48` (tests red phase), `701f32c` (amendments), `1e6f76e` (impl) |
-| Phase 14: Polish + closure (T285-T296) | T285 coverage sweep to 85.36% via 8 new unit-test files; T286 ruff + mypy strict clean; T287 OpenAPI dump diff regenerated; T288 + T289 mechanical guards re-verified; T290 PII-strip CI gate (closes SC-007 for both features); T291 threat model extended with 3 new threats; T292 quickstart re-run in 3 s (SC-008 600 s budget); T293 hot-store legacy-shape cleanup; T294 readiness review (every NON-NEGOTIABLE PASS); T295 + T296 closure docs | **Complete** | feature-002 closure |
-| Phase 13: Observability + operational surface (T280–T284) | `rules.yaml` additions (5 alerts: `RatelimitSustainedThrottle`, `BreakGlassInvoked`, `DeploymentTenantMismatch`, `TenantConfigReloadStalled`, `RatelimitRedisUnavailable`); Grafana panels (rolls in T262 deferral from Phase 10); alert-rule parity test extension; runbook-completeness CI gate extension | **Not started** | — |
-| Phase 14: Polish + closure (T285–T296) | Coverage sweep ≥85%; ruff + mypy strict; OpenAPI dump diff; threat model extension (3 new threats); T142 PII-strip CI gate; T244 Terraform `null_resource`; T293 hot-store legacy-shape cleanup PR (24h post-rollover); quickstart re-run; readiness review; ADR 0007/0008/0009 promotion | **Not started** | — |
+| Phase 14: Polish + closure (T285-T296) | T285 coverage sweep to 85.36% via 8 new unit-test files; T286 ruff + mypy strict clean; T287 OpenAPI dump diff regenerated; T288 + T289 mechanical guards re-verified; T290 PII-strip CI gate (closes SC-007 for both features); T291 threat model extended with 3 new threats; T292 quickstart re-run in 3 s (SC-008 600 s budget); T293 hot-store legacy-shape cleanup; T294 readiness review (every NON-NEGOTIABLE PASS); T295 + T296 closure docs | **Complete** | `6b46c78` (impl + closure), `a9a6390` (T296 placeholder fixup) |
 
 Plan-output artifacts at [`specs/002-multi-tenant-isolation/`](../specs/002-multi-tenant-isolation/). Three ADRs under [`docs/adr/`](adr/) — see CLAUDE.md ADR table for current statuses.
 
-## Test bar at end of Phase 13
+## Test bar at end of Phase 14 (feature 002 closure)
 
 | Tier | Pass | Skip | Fail |
 |---|---|---|---|
-| Unit | 259 | 3 | 0 |
+| Unit | 329 | 3 | 0 |
 | Contract (Phase 9 + 10) | 17 | 0 | 0 |
 | Integration (Phase 12.a + targeted Phase 9/10/11 regression) | 24 | 2 | 0 |
 | Migration rollback (T227 isolated) | 2 | 0 | 0 |
-| CI guard: `scripts/check_runbook_completeness.py` bidirectional | PASS | n/a | n/a |
+| **Coverage** | **85.36%** (over the 85% Principle IV floor) | n/a | n/a |
+| CI guard: `scripts/check_runbook_completeness.py` (bidirectional) | PASS | n/a | n/a |
+| CI guard: `scripts/check_log_pii.py` (NEW at T290) | PASS | n/a | n/a |
+| CI guard: `scripts/check_no_todo_fixme.py` | PASS | n/a | n/a |
+| CI guard: `scripts/check_slm_pinning.py` | PASS | n/a | n/a |
+| ruff check + ruff format --check | clean | n/a | n/a |
+| mypy --strict src/collectmind | clean (88 source files) | n/a | n/a |
 
-3 skipped unit tests: 2 operator-issuer JWKS host-DNS (Phase 14 refactor target); 1 NOTIFY integration deferred to Phase 14. 2 skipped integration: tenant_config_atomic_audit environmental gate.
+3 skipped unit tests: 2 operator-issuer JWKS host-DNS (deferred follow-up); 1 NOTIFY integration deferred. 2 skipped integration: tenant_config_atomic_audit environmental gate. All skips are named and gated; no silent skips.
 
 **Pre-existing test-infrastructure flake surfaced during Phase 12.c full-integration sweep (NOT a Phase 12 regression)**: `tests/integration/test_rls_migration_rollback.py` performs its `down`/`up` cycle via direct SQL `_psql` calls without updating `schema_migrations`. The subsequent `_restore_feature_002_state()` calls `apply_pending(dsn)`, which sees the migration rows as still-applied and skips re-running their SQL — leaving the DB in a state where the `schema_migrations` row exists but the table / role / policy effects of the migration are missing. Downstream tests (`test_rls_restrictive`, `test_break_glass_atomic_audit`, `test_vss_rejection`, `test_recovery_from_outage`) then fail against the corrupted state. Fix is to either (a) have the rollback helpers also clear `schema_migrations` rows, or (b) have `_restore_feature_002_state` purge feature-002 rows before calling `apply_pending`. Deferred to **Phase 14 polish** as a tracked item. Workaround: manually delete the rows from `schema_migrations` and run the migration runner. Phase 12.a tests run cleanly in isolation; T279's binding contract is satisfied.
 
