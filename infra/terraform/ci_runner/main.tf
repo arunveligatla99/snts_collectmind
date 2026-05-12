@@ -76,10 +76,10 @@ resource "aws_iam_instance_profile" "runner" {
 }
 
 resource "aws_instance" "runner" {
-  ami                  = data.aws_ami.amzn_linux_gpu.id
-  instance_type        = "g5.2xlarge"
-  subnet_id            = var.private_subnet_id
-  iam_instance_profile = aws_iam_instance_profile.runner.name
+  ami                    = data.aws_ami.amzn_linux_gpu.id
+  instance_type          = "g5.2xlarge"
+  subnet_id              = var.private_subnet_id
+  iam_instance_profile   = aws_iam_instance_profile.runner.name
   vpc_security_group_ids = var.runner_security_group_id != "" ? [var.runner_security_group_id] : []
 
   user_data = <<-EOT
