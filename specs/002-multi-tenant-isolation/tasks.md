@@ -162,20 +162,22 @@ Single project with multi-module Python service. Source under `src/collectmind/`
 
 ### Phase 12.a — Red-phase tests
 
-- [ ] T272 [P] [US4] Integration test for the deployment-client tenant-scope check at `tests/integration/test_deployment_tenant_scope.py`. Walks every Acceptance Scenario under US4. Asserts: (i) matching tenant → outbound call proceeds; (ii) mismatched → Fatal error class raised, no outbound call, `kind=deployment_rejected` audit row written carrying every FR-023 field; (iii) Fatal supersedes Recoverable retry. FR-021 / FR-022 / FR-023.
-- [ ] T273 [P] [US4] Integration test for SC-012 alert routing at `tests/integration/test_deployment_alert_routing.py`. Drives one mismatched deployment; asserts the Alertmanager-routed page-tier alert lands at the local webhook receiver within 60s. SC-012 (reuses feature-001 T107 alert-routing harness).
-- [ ] T274 [P] [US4] Unit test for `ownership_cache.py` write-through + invalidation at `tests/unit/test_ownership_cache.py`. Asserts cache miss hits Postgres + populates Redis; cache hit skips Postgres; explicit invalidation on `tenant_vehicles` write clears the affected key. ADR-0009 Part 4.
+- [X] T272 [P] [US4] Integration test for the deployment-client tenant-scope check at `tests/integration/test_deployment_tenant_scope.py`. Walks every Acceptance Scenario under US4. Asserts: (i) matching tenant → outbound call proceeds; (ii) mismatched → Fatal error class raised, no outbound call, `kind=deployment_rejected` audit row written carrying every FR-023 field; (iii) Fatal supersedes Recoverable retry. FR-021 / FR-022 / FR-023. <!-- 707fb55 -->
+- [X] T273 [P] [US4] Integration test for SC-012 alert routing at `tests/integration/test_deployment_alert_routing.py`. Drives one mismatched deployment; asserts the Alertmanager-routed page-tier alert lands at the local webhook receiver within 60s. SC-012 (reuses feature-001 T107 alert-routing harness). <!-- 707fb55 -->
+- [X] T274 [P] [US4] Unit test for `ownership_cache.py` write-through + invalidation at `tests/unit/test_ownership_cache.py`. Asserts cache miss hits Postgres + populates Redis; cache hit skips Postgres; explicit invalidation on `tenant_vehicles` write clears the affected key. ADR-0009 Part 4. <!-- 707fb55 -->
 
 ### Phase 12.b — Implementation
 
-- [ ] T275 [US4] Create `src/collectmind/cache/ownership_cache.py` with write-through to Redis (key shape `vehicle_ownership:{vehicle_id}`, TTL 1h, fall-back-open posture on Redis outage). Made green by T274. ADR-0009 Part 4.
-- [ ] T276 [US4] Create `src/collectmind/deployer/tenant_scope_check.py` exposing `validate_tenant_scope(policy)` which iterates `policy.target_vehicle_ids`, calls `ownership_cache.get_owner`, and raises `TenantVehicleMismatch` (Fatal class) on mismatch. ADR-0009 Part 6.
-- [ ] T277 [US4] Wire `validate_tenant_scope` into `src/collectmind/deployer/node.py` before the outbound `CollectorAIClient.deploy(...)` call; raise Fatal; write `kind=deployment_rejected` audit row carrying FR-023's minimum field set; suppress the existing Recoverable retry posture on Fatal. Made green by T272. FR-021 / FR-022 / FR-023.
-- [ ] T278 [US4] Create `observability/runbooks/deployment-tenant-mismatch.md` with the canonical four sections. Names the most-likely operational causes (operator entered wrong VIN in a manual policy injection; vehicle transfer race; corrupted in-flight policy state) and the recovery procedure. FR-024 / Principle V.
+- [X] T275 [US4] Create `src/collectmind/cache/ownership_cache.py` with write-through to Redis (key shape `vehicle_ownership:{vehicle_id}`, TTL 1h, fall-back-open posture on Redis outage). Made green by T274. ADR-0009 Part 4. <!-- e48faed -->
+- [X] T276 [US4] Create `src/collectmind/deployer/tenant_scope_check.py` exposing `validate_tenant_scope(policy)` which iterates `policy.target_vehicle_ids`, calls `ownership_cache.get_owner`, and raises `TenantVehicleMismatch` (Fatal class) on mismatch. ADR-0009 Part 6. <!-- e48faed -->
+- [X] T277 [US4] Wire `validate_tenant_scope` into `src/collectmind/deployer/node.py` before the outbound `CollectorAIClient.deploy(...)` call; raise Fatal; write `kind=deployment_rejected` audit row carrying FR-023's minimum field set; suppress the existing Recoverable retry posture on Fatal. Made green by T272. FR-021 / FR-022 / FR-023. <!-- e48faed -->
+- [X] T278 [US4] Create `observability/runbooks/deployment-tenant-mismatch.md` with the canonical four sections. Names the most-likely operational causes (operator entered wrong VIN in a manual policy injection; vehicle transfer race; corrupted in-flight policy state) and the recovery procedure. FR-024 / Principle V. <!-- e48faed -->
 
 ### Phase 12.c — Verification gate
 
-- [ ] T279 [US4] Run every Phase 12.a test against the real local stack. Assert: 0 failures; SC-012 alert routing within 60 s. Principle IV / Principle XI.
+- [X] T279 [US4] Run every Phase 12.a test against the real local stack. Assert: 0 failures; SC-012 alert routing within 60 s. Principle IV / Principle XI. <!-- e48faed -->
+
+**T279 outcome**: 8/8 Phase 12.a tests green against the real local stack — 3 in `test_deployment_tenant_scope.py` (AS-1 / AS-2 / AS-3), 1 in `test_deployment_alert_routing.py` (SC-012 wall-clock within 60 s), 4 in `tests/unit/test_ownership_cache.py`. Phase 9/10/11 regression sweep (16 tests across `test_rls_restrictive`, `test_break_glass_atomic_audit`, `test_negative_path_e2e`, `test_hot_store_*`, `test_ratelimit_redis_unavailable`) green. Full unit suite: 248 pass / 3 skip / 0 fail. Pre-existing test-infrastructure flake in `test_rls_migration_rollback` (manual SQL down/up cycle desynchronizes `schema_migrations` from DB state) surfaced during the full integration regression sweep; not a Phase 12 regression; fix deferred to Phase 14 polish per `docs/DECISIONS.md`.
 
 **Checkpoint**: US4 complete. Deployment-client tenant scoping enforced; mismatch audit chain complete; alert routing verified.
 

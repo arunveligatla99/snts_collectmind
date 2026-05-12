@@ -240,6 +240,65 @@ The DISTINCT metrics (`ratelimit_redis_unavailable_total` for 503, `ratelimit_th
 
 **Why this matters**: Future limiter-style primitives (audit-storm dampener in feature 005, circuit breaker on the downstream Collector AI client in feature 004) will inherit this shape. The three-branch pattern is the canonical "no fallthrough" implementation; an integration test that exercises EACH branch independently is the canonical proof.
 
+## 2026-05-11 — Phase 12: deployer-node Fatal handler is structurally atomic-audit (scope check → Fatal → audit-write → re-raise, in that order, with no path to the collector on the failure branch)
+
+**Decision**: The `src/collectmind/deployer/node.py:deploy_with_tenant_scope_check` wrapper enforces FR-021 / FR-022 / FR-023 by structure, not by discipline. The shape is:
+
+```python
+try:
+    await validate_tenant_scope(policy=policy, ownership_cache=...)
+except TenantVehicleMismatch as mismatch:
+    await audit_writer.write(kind="deployment_rejected", ..., originating_finding={
+        "policy_ref": ..., "target_vehicle_id": ..., "policy_declared_tenant_id": ...,
+        "vehicle_owning_tenant_id": ...,
+    })
+    raise
+
+# scope check passed
+response = collector.deploy(...)
+```
+
+Three structural properties hold by virtue of the shape:
+
+1. **First gate**. `validate_tenant_scope` is the FIRST thing called on the hot path. No rate-limit, no audit pre-write, no other check. The Fatal fires before any work the deployer would otherwise do.
+2. **Audit-write is the last act before the Fatal propagates**. Inside `except TenantVehicleMismatch`, the audit row lands, then `raise` re-raises the same exception. No code path reaches `collector.deploy(...)` on the mismatch branch.
+3. **Fatal supersedes Recoverable retry by topology**. The outbound `collector.deploy(...)` is on the happy branch only. Even if the collector raises `Recoverable` (transient backoff), it can only do so AFTER the scope check passed. A mismatched scope short-circuits to the Fatal-handling path; the collector is never invoked. The deployer's existing retry loop wraps `collector.deploy`, not `validate_tenant_scope`.
+
+**Why this matters**: A discipline-based implementation ("remember to audit on mismatch, remember not to retry on Fatal") is the wrong tool for FR-022's "MUST NOT retry" property — it depends on every future maintainer to remember the rule. A structural implementation ("there is no code path that retries the Fatal because the Fatal isn't on a retried branch") removes the discipline dependency entirely. The integration test `test_deployment_tenant_scope.py::test_as3_fatal_supersedes_recoverable_retry` exercises the property by pairing a mismatched policy with a collector that would otherwise raise Recoverable on every call, then asserting `collector.calls == 0` after the Fatal propagates. The assertion holds because of the topology, not because of a special-case retry-suppression check.
+
+This is the same shape as Phase 10's three-branch failure-CLOSED rate-limit middleware (one entry, three exits, no fallthrough): structure, not discipline. Future audit-emitting Fatal classes (e.g., a hypothetical `PolicyTenantOwnershipDrift` in feature 003) inherit the pattern.
+
+## 2026-05-11 — Phase 12: failure-OPEN ownership cache (correctness gate) explicitly contrasted with failure-CLOSED rate-limiter (security primitive)
+
+**Decision**: `OwnershipCache.get_owner` swallows Redis exceptions and falls back to Postgres ("failure-OPEN"). The rate-limit middleware fails CLOSED on Redis unavailability (returns 503; refuses traffic). The two postures are deliberate and opposite.
+
+**Why this matters**: The cost of each posture's failure mode is asymmetric.
+
+- A failure-CLOSED rate-limiter on Redis outage refuses traffic. Tenants see 503 + `Retry-After`. The cost of false-positive refusal is acceptable; the cost of allowing unlimited traffic during a Redis outage is unbounded (the limiter exists exactly to bound it). The right answer is to refuse.
+- A failure-OPEN ownership cache on Redis outage falls back to Postgres (the authoritative source). Deployments proceed at degraded latency. The cost of refusing all deployments during a Redis outage would be a Sev-1 outage for the platform; the cost of falling back to Postgres is a small SC-005 budget bite. The right answer is to fall back.
+
+The two postures correspond to whether the cached subsystem is a **security primitive** (rate-limit: the cache IS the enforcement) or a **correctness gate** (ownership: the cache is a performance optimization over an authoritative store that's still reachable). The integration test `test_ownership_cache.py::test_redis_unavailable_falls_back_to_postgres` and `test_ratelimit_redis_unavailable.py` pin the two postures structurally.
+
+Recorded explicitly so future cache decisions inherit the framing rather than defaulting to one or the other. The framing is: **what's the cost of refusal vs. the cost of fallback?** If refusal is cheaper than fallback, fail closed. If fallback is cheaper than refusal, fail open. Never decide by reflex.
+
+## 2026-05-11 — Phase 12: ownership cache key shape is global, NOT tenant-scoped
+
+**Decision**: The ownership cache uses `vehicle_ownership:{vehicle_id}` — no tenant prefix. The underlying lookup answers "who owns this vehicle?" which is exactly the operator-level question the deployer needs.
+
+**Why this matters**: A tenant-prefixed key shape (`tenant_ownership:{tenant_id}:{vehicle_id}`) would require the deployer to either guess the tenant_id (defeating the purpose of the lookup) or pay N reads per vehicle to scan tenant prefixes. The global key shape is unambiguous: one read, one answer, regardless of which tenant the deployer thinks owns the vehicle. The RESTRICTIVE RLS on `tenant_vehicles` (ADR-0009 Part 5) is the structural tenant-isolation gate for tenant-scoped reads of the canonical store; the cache is operator-level and bypasses RLS by design (it's served from the cache for performance, not for security). Contrast with the hot-store keys (`tenant_id:vehicle_id:signal_name`, per FR-018) which ARE tenant-scoped because the hot-store telemetry IS tenant-scoped data — different semantics, different key shapes. The general framing: cache key namespace shape mirrors the question the cache answers, not the security domain of the cache's underlying data.
+
+## 2026-05-11 — Phase 12.c: pre-existing test_rls_migration_rollback schema_migrations desync surfaced (NOT a Phase 12 regression)
+
+**Decision**: `tests/integration/test_rls_migration_rollback.py`'s `_ensure_clean_state` and the test-body rollback loop run `*.down.sql` files via `_psql` (direct docker exec) without updating the runner's `schema_migrations` tracking table. The subsequent `_restore_feature_002_state` calls `apply_pending(dsn)`, which reads `schema_migrations`, sees the rolled-back versions as still-applied, and SKIPS the corresponding `*.up.sql` files. The DB ends up in a state where the migration rows exist but the table / role / policy effects of the migration are missing. Downstream integration tests (`test_rls_restrictive`, `test_break_glass_atomic_audit`, `test_vss_rejection`, `test_recovery_from_outage`) then fail against the corrupted state.
+
+**Why this matters**: This is a TEST-INFRASTRUCTURE bug, not a feature bug. Phase 12.a tests run cleanly in isolation; the failure only surfaces when the full integration suite is invoked in a single pytest run. T279's binding contract ("0 failures on Phase 12.a tests") is satisfied. The bug exists in feature 002's test scaffolding shipped before Phase 12 began.
+
+**Two-line fix candidates** (Phase 14 polish):
+- (a) Inside the test's rollback helper, also `DELETE FROM schema_migrations WHERE version = $1` for each rolled-back migration, OR
+- (b) Inside `_restore_feature_002_state`, `DELETE FROM schema_migrations WHERE version IN ('012','013','014','015','016','017')` before calling `apply_pending`.
+
+Workaround for now: when the full integration suite is invoked and downstream tests fail, manually clear feature-002 rows from `schema_migrations` and run the migration runner. This is the canonical "trust the gate, audit on signal, defer on signal" pattern at work: the failure is named, the fix is scoped, the workaround is documented, and Phase 12 closure is not blocked by an orthogonal test-infrastructure defect.
+
 ## 2026-05-11 — Phase 11: dual-read with Fatal deadline (env-var + structural enforcement)
 
 **Decision**: The Redis hot-store key-shape transition from `vehicle_id:signal_name` (feature 001 legacy) to `tenant_id:vehicle_id:signal_name` (feature 002, FR-018) uses an env-var-gated dual-read window with a STRUCTURAL Fatal-error deadline. The env var (`HOT_STORE_LEGACY_FALLBACK_ENABLED`) is the operator-facing flag; the `LegacyKeyShapeError` raised by `get_signal_for_tenant()` when the flag is `false` AND a legacy-shape key is observed is the structural enforcement. After 24h+epsilon in production, ops flips the env var to `false`; the Fatal class fires on every legacy-shape observation; Phase 14 T293 lands the one-time-cleanup PR that removes the fallback branch + the env var entirely.

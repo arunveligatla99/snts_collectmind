@@ -1,11 +1,11 @@
 # Project State — CollectMind
 
-**Updated**: 2026-05-11
+**Updated**: 2026-05-11 (Phase 12 closure)
 **Branch**: `002-multi-tenant-isolation`
 **Constitution**: v1.0.1 at `.specify/memory/constitution.md`
-**Status**: **Feature 001 shipped** (`990b437` + `a49939e`). **Feature 002 mid-flight at Phase 11 of 14** — US1 + US2 + US3 closed (`f460e7c` is the latest HEAD); Phase 12 (US4 deployment-client tenant scoping) is the next phase, followed by Phase 13 (observability cross-cutting) and Phase 14 (polish + closure).
+**Status**: **Feature 001 shipped** (`990b437` + `a49939e`). **Feature 002 mid-flight at Phase 12 of 14** — US1 + US2 + US3 + US4 closed (`e48faed` is the latest HEAD); Phase 13 (observability cross-cutting) is the next phase, followed by Phase 14 (polish + closure).
 
-## Phase status (feature 002 — Phases 8-11 closed; Phases 12-14 remain)
+## Phase status (feature 002 — Phases 8-12 closed; Phases 13-14 remain)
 
 | Phase | Range | Status | Anchor commit(s) |
 |---|---|---|---|
@@ -13,22 +13,24 @@
 | Phase 9: US1 — Tenant data isolated end-to-end (T220–T245) | Red-phase contract + integration + unit tests; RLS migration applied via runner; break-glass router + atomic audit; tenant_config + tenant_vehicles repositories; cross-tenant 404 collapse; SET LOCAL ROLE + GUC in `Database.acquire()` per ADR-0007 Part 3 | **Complete** | `4d18a22` (tests red phase), `5429689` (impl) |
 | Phase 10: US2 — Noisy-neighbor rate limiting (T246–T263) | Token-bucket Lua (atomic single EVALSHA, `now_ms` from caller, HASH state); 3-branch middleware (allow/429/503); `config_cache` LISTEN/NOTIFY consumer; FR-012 defaults; three DISTINCT metrics (decision/throttled/redis_unavailable); failure-CLOSED posture; runbook pages | **Complete** | `fd16953` (tests red phase), `d4beeaa` (impl) |
 | Phase 11: US3 — Hot-store key tenancy (T264–T271) | Pure `_hot_store_key` helper; tenant-scoped read/write API; dual-read fallback during rollover window (new-shape FIRST, legacy on miss, env-gated); `LegacyKeyShapeError` Fatal guard post-rollover; hypothesis property test for structural cross-tenant key isolation | **Complete** | `2c93827` (tests red phase), `f460e7c` (impl) |
-| Phase 12: US4 — Deployment-client tenant scoping (T272–T279) | `ownership_cache.py` (write-through Redis + Postgres fallback), `tenant_scope_check.py` (deployer hot-path validation), deployer wiring + Fatal class, `kind=deployment_rejected` audit row, SC-012 alert routing | **Not started** | — |
+| Phase 12: US4 — Deployment-client tenant scoping (T272–T279) | `ownership_cache.py` (write-through Redis + Postgres fallback, 1h TTL, failure-OPEN); `tenant_scope_check.py` (FIRST-gate validate_tenant_scope + Fatal `TenantVehicleMismatch`); `deployer/node.py` (`deploy_with_tenant_scope_check`: scope-check → atomic `kind=deployment_rejected` audit-row inside Fatal handler → re-raise; collector never invoked on mismatch); `deployment-tenant-mismatch.md` runbook | **Complete** | `707fb55` (tests red phase), `e48faed` (impl) |
 | Phase 13: Observability + operational surface (T280–T284) | `rules.yaml` additions (5 alerts: `RatelimitSustainedThrottle`, `BreakGlassInvoked`, `DeploymentTenantMismatch`, `TenantConfigReloadStalled`, `RatelimitRedisUnavailable`); Grafana panels (rolls in T262 deferral from Phase 10); alert-rule parity test extension; runbook-completeness CI gate extension | **Not started** | — |
 | Phase 14: Polish + closure (T285–T296) | Coverage sweep ≥85%; ruff + mypy strict; OpenAPI dump diff; threat model extension (3 new threats); T142 PII-strip CI gate; T244 Terraform `null_resource`; T293 hot-store legacy-shape cleanup PR (24h post-rollover); quickstart re-run; readiness review; ADR 0007/0008/0009 promotion | **Not started** | — |
 
 Plan-output artifacts at [`specs/002-multi-tenant-isolation/`](../specs/002-multi-tenant-isolation/). Three ADRs under [`docs/adr/`](adr/) — see CLAUDE.md ADR table for current statuses.
 
-## Test bar at end of Phase 11
+## Test bar at end of Phase 12
 
 | Tier | Pass | Skip | Fail |
 |---|---|---|---|
-| Unit | 244 | 3 | 0 |
+| Unit | 248 | 3 | 0 |
 | Contract (Phase 9 + 10) | 17 | 0 | 0 |
-| Integration (Phase 9 + 10 + 11) | 21 | 2 | 0 |
+| Integration (Phase 12.a + targeted Phase 9/10/11 regression) | 24 | 2 | 0 |
 | Migration rollback (T227 isolated) | 2 | 0 | 0 |
 
-3 skipped unit tests: 2 operator-issuer JWKS host-DNS (Phase 14 refactor target); 1 NOTIFY integration deferred to Phase 12/13. 2 skipped integration: tenant_config_atomic_audit environmental gate.
+3 skipped unit tests: 2 operator-issuer JWKS host-DNS (Phase 14 refactor target); 1 NOTIFY integration deferred to Phase 13. 2 skipped integration: tenant_config_atomic_audit environmental gate.
+
+**Pre-existing test-infrastructure flake surfaced during Phase 12.c full-integration sweep (NOT a Phase 12 regression)**: `tests/integration/test_rls_migration_rollback.py` performs its `down`/`up` cycle via direct SQL `_psql` calls without updating `schema_migrations`. The subsequent `_restore_feature_002_state()` calls `apply_pending(dsn)`, which sees the migration rows as still-applied and skips re-running their SQL — leaving the DB in a state where the `schema_migrations` row exists but the table / role / policy effects of the migration are missing. Downstream tests (`test_rls_restrictive`, `test_break_glass_atomic_audit`, `test_vss_rejection`, `test_recovery_from_outage`) then fail against the corrupted state. Fix is to either (a) have the rollback helpers also clear `schema_migrations` rows, or (b) have `_restore_feature_002_state` purge feature-002 rows before calling `apply_pending`. Deferred to **Phase 14 polish** as a tracked item. Workaround: manually delete the rows from `schema_migrations` and run the migration runner. Phase 12.a tests run cleanly in isolation; T279's binding contract is satisfied.
 
 ## Phase status (feature 001 — all phases closed)
 
@@ -129,6 +131,8 @@ Feature 002's scope per Phase 1's plan: tighten RLS from permissive to restricti
 | **T262 Grafana dashboard panel JSON for per-tenant rate-limit metrics** | Phase 10 closure deferral | Phase 10 registered the metrics (`decision_total`, `throttled_total`, `redis_unavailable_total`) and they appear on `/metrics` immediately. The Grafana panel JSON update for the `CollectMind end-to-end` dashboard's per-tenant rate-limit row rolls into Phase 13 **T281** (cross-cutting observability). Same approach as feature 001's Phase 4 + Phase 5 split. Gating: Phase 13 T281. |
 | **T293 hot-store legacy-shape cleanup PR (one-time)** | Phase 11 watch-point 2 deadline | The dual-read fallback in `get_signal_for_tenant()` is gated by `HOT_STORE_LEGACY_FALLBACK_ENABLED`. After the 24h+epsilon rollover window in production, ops sets the env to `false` and (a) the `LegacyKeyShapeError` guard fires on any legacy-shape observation, AND (b) a follow-up PR removes the fallback branch + the env var + the `get_signal_for_tenant_strict()` variant from `src/collectmind/redis/client.py`. Lands in Phase 14 as **T293** per `specs/002-multi-tenant-isolation/tasks.md`. Gating: 24h post-production-cutover, after a `SCAN` against the production Redis confirms zero legacy-shape keys remain. |
 | **Operator-issuer JWKS host-DNS resolution in unit tests** | `tests/unit/test_operator_principal.py` (2 skipped tests) | Host-side Python can't resolve `operator-issuer:8088` (the Compose-internal hostname). 2 unit tests skipped with explicit reason; refactor to FastAPI TestClient + in-memory JWKS lands in Phase 14 polish alongside the readiness review. Gating: Phase 14 polish; not a security regression (the same property is exercised live via the running orchestration-api in T232). |
+| **`test_rls_migration_rollback` schema_migrations desynchronization** (Phase 12.c sweep finding) | `tests/integration/test_rls_migration_rollback.py` — manual `_psql` down/up cycle leaves the runner's tracking table out of sync with DB state, so a subsequent `apply_pending` skips already-recorded-but-rolled-back migrations | NOT a Phase 12 regression; surfaced during T279's full-integration sweep as the root cause of 5 unrelated tests failing against the resulting corrupted state. Two-line fix: either clear `schema_migrations` rows inside the test's rollback helper, or purge feature-002 rows in `_restore_feature_002_state` before calling `apply_pending`. Phase 12.a tests are unaffected. Lands in Phase 14 polish. |
+| **App `_lifespan` does NOT yet wire `OwnershipCache` into the deployer node** (Phase 12.c watch-point) | `src/collectmind/app.py` lifespan handler | Phase 12.b ships the `deploy_with_tenant_scope_check` wrapper with lazy-default factories that build host-friendly `OwnershipCache` + `AuditEventWriter` per call. Production wiring through the FastAPI lifespan (so the deployer node uses the app-state instances) lands in Phase 14 as part of the `_lifespan` integration sweep. Phase 12 tests use the lazy default path explicitly; no behavior regression. |
 
 ## What is deferred (named gaps; not silent)
 

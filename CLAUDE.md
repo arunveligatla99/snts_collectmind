@@ -5,7 +5,7 @@ This file is the entry point for any Claude Code session opened against this rep
 <!-- SPECKIT START -->
 **Feature 001 — `policy-loop-vertical-slice` — is shipped** (`990b437` + `a49939e`). Closure artifact at [`docs/runbook/feature-001-readiness-review.md`](docs/runbook/feature-001-readiness-review.md): every NON-NEGOTIABLE constitutional principle (IV, VII, IX, X, XI, XIII, XIV) is PASS with a named artifact.
 
-**Feature 002 — `multi-tenant-isolation` — MID-FLIGHT at Phase 11 of 14** (branch `002-multi-tenant-isolation`; HEAD `f460e7c`). Phases 8, 9, 10, 11 closed. Phase 12 (US4 deployment-client tenant scoping) is the next phase. Phase 13 (observability cross-cutting) and Phase 14 (polish + closure) follow. Phase status table at [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
+**Feature 002 — `multi-tenant-isolation` — MID-FLIGHT at Phase 12 of 14** (branch `002-multi-tenant-isolation`; HEAD `e48faed`). Phases 8, 9, 10, 11, 12 closed. Phase 13 (observability cross-cutting, T280-T284) is the next phase. Phase 14 (polish + closure, T285-T296) follows. Phase status table at [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
 
 Active feature artifacts (feature 002):
 
@@ -15,7 +15,7 @@ Active feature artifacts (feature 002):
 - Data model: `specs/002-multi-tenant-isolation/data-model.md`
 - Contracts: `specs/002-multi-tenant-isolation/contracts/` (audit-admin.v1.yaml NEW; orchestration-api + query-api delta files for v1.1.0)
 - Quickstart: `specs/002-multi-tenant-isolation/quickstart.md`
-- Tasks: `specs/002-multi-tenant-isolation/tasks.md` (T200-T271 closed; T272-T296 remain)
+- Tasks: `specs/002-multi-tenant-isolation/tasks.md` (T200-T279 closed; T280-T296 remain)
 
 Feature 001 artifacts remain load-bearing as the inherited baseline (Spec Dependencies §):
 
@@ -53,7 +53,7 @@ ADRs live at `docs/adr/`. Drafting cadence and table of contents at `docs/adr/RE
 | ADR-0006 | Dev-only `DevDefaultPolicyClient` for local-development workflows (no real SLM required) | Accepted |
 | ADR-0007 | Row-Level Security hardening posture + break-glass service-principal bypass | **Accepted** (promoted at Phase 9 closure; integration tier validates RESTRICTIVE+PERMISSIVE-baseline pattern + break-glass atomic audit + SET LOCAL ROLE connection-pool contract per Phase 9.b worked example) |
 | ADR-0008 | Per-tenant ingress rate limiting + hot-store key migration mechanism | **Proposed** (Phase 10 + Phase 11 implementation green; promotes to Accepted at feature-002 closure after production rate-limit verification on workflow_dispatch tier per Principle XIV — the token-bucket Lua + 3-branch middleware + failure-CLOSED + dual-read rollover are all locally green) |
-| ADR-0009 | Tenant-Vehicle Ownership store — mutable current row + append-only history | **Accepted** (promoted at Phase 9 closure; tenant_vehicles + tenant_vehicles_history tables in use; history immutability trigger + atomic `kind=vehicle_assignment_change` audit row both verified at integration tier) |
+| ADR-0009 | Tenant-Vehicle Ownership store — mutable current row + append-only history | **Accepted** (promoted at Phase 9 closure; tenant_vehicles + tenant_vehicles_history tables in use; history immutability trigger + atomic `kind=vehicle_assignment_change` audit row both verified at integration tier; Phase 12 closure adds the deployer-hot-path validation per Part 6 + the write-through Redis ownership cache per Part 4 with failure-OPEN posture explicitly contrasted with ADR-0008's failure-CLOSED rate-limiter) |
 
 ## Principles (load-bearing; do not relax silently)
 
