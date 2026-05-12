@@ -215,6 +215,47 @@ A table with only RESTRICTIVE policies has no permissive input to the AND combin
 
 **Cost of the surprise**: ~30 minutes of debug + one migration rewrite per affected table. The win: every future migration that adds a tenant-scoped table has the pattern named and the test template ready. The integration test suite is the canonical proof that the pattern holds.
 
+## 2026-05-11 — Phase 10: three-branch middleware pattern (no implicit fallthrough)
+
+**Decision**: The per-tenant rate-limit middleware at `src/collectmind/ratelimit/middleware.py` has THREE explicit response branches (Redis-failure → 503, allowed → pass, denied → 429); no implicit fallthrough; each branch is at a distinct call site with distinct metric increments. The shape is binding for every future limiter/circuit-breaker primitive in CollectMind.
+
+**Worked example**: ADR-0008 Part 3 mandates failure-CLOSED posture on Redis unavailability. The "obvious" implementation is one return statement at the end of `dispatch()` with conditionals inside. The "obvious" implementation also makes it easy to write a bug where the Redis-failure path silently falls through to the allow path (e.g., catching the Redis exception, logging it, and continuing past the rate-limit check to the route handler). The three-branch pattern eliminates that failure mode at the structural level: each branch ends in `return JSONResponse(...)` with a distinct status code; there is NO code path that reaches the route handler under a Redis failure.
+
+```python
+# Branch 1: Redis unavailable → 503 failure-closed
+ratelimit_redis_unavailable_total.labels(endpoint=endpoint_label).inc()
+return JSONResponse(status_code=503, ..., headers={"Retry-After": "1"})
+
+# Branch 2: allow → pass to next middleware/route
+ratelimit_decision_total.labels(..., decision="allow").inc()
+return await call_next(request)
+
+# Branch 3: deny → 429 + computed Retry-After
+ratelimit_decision_total.labels(..., decision="reject").inc()
+ratelimit_throttled_total.labels(...).inc()
+return JSONResponse(status_code=429, ..., headers={"Retry-After": str(retry_after_seconds)})
+```
+
+The DISTINCT metrics (`ratelimit_redis_unavailable_total` for 503, `ratelimit_throttled_total` for 429) are the operational side of the same property: two failure conditions, two alert routings, two runbook pages. Operators see "the limiter is doing its job" vs "the limiter is broken" at a glance.
+
+**Why this matters**: Future limiter-style primitives (audit-storm dampener in feature 005, circuit breaker on the downstream Collector AI client in feature 004) will inherit this shape. The three-branch pattern is the canonical "no fallthrough" implementation; an integration test that exercises EACH branch independently is the canonical proof.
+
+## 2026-05-11 — Phase 11: dual-read with Fatal deadline (env-var + structural enforcement)
+
+**Decision**: The Redis hot-store key-shape transition from `vehicle_id:signal_name` (feature 001 legacy) to `tenant_id:vehicle_id:signal_name` (feature 002, FR-018) uses an env-var-gated dual-read window with a STRUCTURAL Fatal-error deadline. The env var (`HOT_STORE_LEGACY_FALLBACK_ENABLED`) is the operator-facing flag; the `LegacyKeyShapeError` raised by `get_signal_for_tenant()` when the flag is `false` AND a legacy-shape key is observed is the structural enforcement. After 24h+epsilon in production, ops flips the env var to `false`; the Fatal class fires on every legacy-shape observation; Phase 14 T293 lands the one-time-cleanup PR that removes the fallback branch + the env var entirely.
+
+**Worked example**: ADR-0008 Part 5 picks "TTL-driven natural rollover" (option C) over the one-shot scripted migration (option A) and dual-write (option B). The choice has one operational consequence the user explicitly called out at Phase 11 kickoff: "Pure flag-flip-on-cutover loses recent data." Without a dual-read window, every read against a pre-cutover-written value returns a cache miss until the writer re-populates. With dual-read, the rollover is invisible to the application — readers prefer the new shape, fall back to the legacy shape during the TTL window, and the legacy keys expire naturally.
+
+The trap is permanence: a dual-read window without a deadline becomes a fork in the codebase that lasts forever. Phase 11 enforces the deadline at two levels:
+
+1. **Operator-controlled timing** (env var): ops decides when to flip `HOT_STORE_LEGACY_FALLBACK_ENABLED` from `true` to `false`. The Phase 8 migration ships with the env defaulting to `true`; ops flips after a `SCAN` confirms zero legacy keys remain.
+
+2. **Structural enforcement** (LegacyKeyShapeError): with the env flipped to `false`, the read path inside `get_signal_for_tenant()` no longer falls back to legacy on miss — instead, if a legacy-shape key happens to exist for the `(vehicle_id, signal_name)` pair, the read RAISES `LegacyKeyShapeError`. The post-rollover invariant ("no legacy keys remain") is asserted on every read; any regression is a Fatal error class, not a silent miss.
+
+3. **Tracked cleanup** (T293): Phase 14 ships the one-time-cleanup PR. The PR removes the fallback branch from `get_signal_for_tenant`, removes the `_legacy_fallback_enabled()` helper, removes the env var, and removes the `get_signal_for_tenant_strict()` API entirely. After T293 lands, the dual-read code path is gone from the codebase; the rollover is permanently complete.
+
+**Why this matters**: Schema migrations and key-shape migrations are easy to start but hard to finish. Most projects accumulate "compatibility shims" that outlive the migration window by years because nobody has a structural mechanism to drive the cleanup. The env-var-plus-Fatal pattern is the structural mechanism: the deadline is not a wiki page or a JIRA ticket but a code path that fails closed once the operator says the rollover is done. Feature 003's any-future-migration ADR inherits the pattern.
+
 ## 2026-05-11 — Phase 6 closure: T136 and T139 record measured numbers, not budgets, as the documentation pattern
 
 **Decision**: Phase 6 T136 (dashboard-lag SLO measurement) and T139 (quickstart end-to-end re-run) both record the *measured* wall-clock numbers from real local runs into the corresponding documentation artifacts (`observability/runbooks/slo-006-dashboard-lag.md` for T136; `docs/runbook/feature-001-readiness-review.md` and `docs/PROJECT_STATE.md` for T139). T136 records max 2.11 s / mean 1.98 s over 5 publications against the SC-006 10 s ceiling. T139 records 27.32 s end-to-end on a warm Compose stack against the SC-008 600 s budget. Both entries include the methodology (sample size, polling cadence, what "warm stack" means) so the measurement is reproducible.

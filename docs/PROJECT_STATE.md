@@ -3,21 +3,32 @@
 **Updated**: 2026-05-11
 **Branch**: `002-multi-tenant-isolation`
 **Constitution**: v1.0.1 at `.specify/memory/constitution.md`
-**Status**: **Feature 001 — `policy-loop-vertical-slice` — is shipped** (commits `990b437` + `a49939e`). Closure artifact: [`docs/runbook/feature-001-readiness-review.md`](runbook/feature-001-readiness-review.md). **Feature 002 — `multi-tenant-isolation` — PLAN COMPLETE; tasks generated** (commits `d085f19` spec/clarify + `d4c83c9` plan/ADRs; tasks at `specs/002-multi-tenant-isolation/tasks.md`). ADRs 0007/0008/0009 Proposed; promote to Accepted at feature-002 closure.
+**Status**: **Feature 001 shipped** (`990b437` + `a49939e`). **Feature 002 mid-flight at Phase 11 of 14** — US1 + US2 + US3 closed (`f460e7c` is the latest HEAD); Phase 12 (US4 deployment-client tenant scoping) is the next phase, followed by Phase 13 (observability cross-cutting) and Phase 14 (polish + closure).
 
-## Phase status (feature 002 — PLAN COMPLETE; implementation not started)
+## Phase status (feature 002 — Phases 8-11 closed; Phases 12-14 remain)
 
-| Phase | Range | Status | Anchor commit |
+| Phase | Range | Status | Anchor commit(s) |
 |---|---|---|---|
-| Phase 8: Setup + Foundational (T200–T211) | Compose `operator-issuer` profile, dual-issuer JWT verifier, audit writer extension, migrations 011-014 (RLS RESTRICTIVE, tenant_config, tenant_vehicles + history, audit-events UNIQUE constraint), contracts mirroring | **Not started** | — |
-| Phase 9: US1 — Tenant data isolated end-to-end (T220–T245) | Red-phase contract + integration + unit tests; RLS migration; break-glass router + atomic audit; tenant_config + tenant_vehicles repositories; cross-tenant 404 collapse | **Not started** | — |
-| Phase 10: US2 — Noisy-neighbor rate limiting (T246–T263) | Token-bucket Lua, middleware, config_cache with LISTEN/NOTIFY, failure-closed posture, defaults, metrics, runbooks, Grafana panels | **Not started** | — |
-| Phase 11: US3 — Hot-store key tenancy (T264–T271) | Key-shape transition (TTL-driven natural rollover); fallback-read branch; legacy-shape Fatal guard | **Not started** | — |
-| Phase 12: US4 — Deployment-client tenant scoping (T272–T279) | ownership_cache, tenant_scope_check, deployer wiring + Fatal class, deployment-rejected audit row, alert routing | **Not started** | — |
-| Phase 13: Observability + operational surface (T280–T284) | Prometheus rules.yaml + Grafana panels + Alertmanager + runbook completeness gate extension | **Not started** | — |
-| Phase 14: Polish + closure (T285–T296) | Coverage sweep; ruff + mypy strict; OpenAPI dump diff; threat model extension; T142 PII-strip CI gate; quickstart re-run; readiness review; ADR promotion; one-time-cleanup PR | **Not started** | — |
+| Phase 8: Setup + Foundational (T200–T211) | Compose `operator-issuer` profile, dual-issuer JWT verifier, audit writer extension, migrations 012-017 (RLS RESTRICTIVE+PERMISSIVE baseline, audit-kind widening, tenant_config, tenant_vehicles + history, audit-events UNIQUE constraint, collectmind_tenant role), contracts mirroring | **Complete** | `44f9657` |
+| Phase 9: US1 — Tenant data isolated end-to-end (T220–T245) | Red-phase contract + integration + unit tests; RLS migration applied via runner; break-glass router + atomic audit; tenant_config + tenant_vehicles repositories; cross-tenant 404 collapse; SET LOCAL ROLE + GUC in `Database.acquire()` per ADR-0007 Part 3 | **Complete** | `4d18a22` (tests red phase), `5429689` (impl) |
+| Phase 10: US2 — Noisy-neighbor rate limiting (T246–T263) | Token-bucket Lua (atomic single EVALSHA, `now_ms` from caller, HASH state); 3-branch middleware (allow/429/503); `config_cache` LISTEN/NOTIFY consumer; FR-012 defaults; three DISTINCT metrics (decision/throttled/redis_unavailable); failure-CLOSED posture; runbook pages | **Complete** | `fd16953` (tests red phase), `d4beeaa` (impl) |
+| Phase 11: US3 — Hot-store key tenancy (T264–T271) | Pure `_hot_store_key` helper; tenant-scoped read/write API; dual-read fallback during rollover window (new-shape FIRST, legacy on miss, env-gated); `LegacyKeyShapeError` Fatal guard post-rollover; hypothesis property test for structural cross-tenant key isolation | **Complete** | `2c93827` (tests red phase), `f460e7c` (impl) |
+| Phase 12: US4 — Deployment-client tenant scoping (T272–T279) | `ownership_cache.py` (write-through Redis + Postgres fallback), `tenant_scope_check.py` (deployer hot-path validation), deployer wiring + Fatal class, `kind=deployment_rejected` audit row, SC-012 alert routing | **Not started** | — |
+| Phase 13: Observability + operational surface (T280–T284) | `rules.yaml` additions (5 alerts: `RatelimitSustainedThrottle`, `BreakGlassInvoked`, `DeploymentTenantMismatch`, `TenantConfigReloadStalled`, `RatelimitRedisUnavailable`); Grafana panels (rolls in T262 deferral from Phase 10); alert-rule parity test extension; runbook-completeness CI gate extension | **Not started** | — |
+| Phase 14: Polish + closure (T285–T296) | Coverage sweep ≥85%; ruff + mypy strict; OpenAPI dump diff; threat model extension (3 new threats); T142 PII-strip CI gate; T244 Terraform `null_resource`; T293 hot-store legacy-shape cleanup PR (24h post-rollover); quickstart re-run; readiness review; ADR 0007/0008/0009 promotion | **Not started** | — |
 
-Plan-output artifacts at [`specs/002-multi-tenant-isolation/`](../specs/002-multi-tenant-isolation/): spec.md (commit `d085f19`), plan.md, research.md, data-model.md, contracts/, quickstart.md (all commit `d4c83c9`). Tasks file: [`tasks.md`](../specs/002-multi-tenant-isolation/tasks.md). Three ADRs (`0007`/`0008`/`0009`) at status Proposed under [`docs/adr/`](adr/).
+Plan-output artifacts at [`specs/002-multi-tenant-isolation/`](../specs/002-multi-tenant-isolation/). Three ADRs under [`docs/adr/`](adr/) — see CLAUDE.md ADR table for current statuses.
+
+## Test bar at end of Phase 11
+
+| Tier | Pass | Skip | Fail |
+|---|---|---|---|
+| Unit | 244 | 3 | 0 |
+| Contract (Phase 9 + 10) | 17 | 0 | 0 |
+| Integration (Phase 9 + 10 + 11) | 21 | 2 | 0 |
+| Migration rollback (T227 isolated) | 2 | 0 | 0 |
+
+3 skipped unit tests: 2 operator-issuer JWKS host-DNS (Phase 14 refactor target); 1 NOTIFY integration deferred to Phase 12/13. 2 skipped integration: tenant_config_atomic_audit environmental gate.
 
 ## Phase status (feature 001 — all phases closed)
 
@@ -115,6 +126,8 @@ Feature 002's scope per Phase 1's plan: tighten RLS from permissive to restricti
 | Item | Source | Reason / Gating condition |
 |---|---|---|
 | **T244 Terraform `null_resource` for migration runner invocation** | `specs/002-multi-tenant-isolation/tasks.md` Phase 9.b T244 | Phase 9.b shipped the migration runner as a Python module (`src/collectmind/registry/migrations/runner.py`) with an opt-in startup hook in `app.py` (`MIGRATIONS_AUTO_APPLY=true`). The Terraform `null_resource` that invokes the runner from CI/CD against the deployed RDS Postgres is deferred to Phase 14 polish — it requires a Terraform-side decision (one-shot `local-exec` vs sidecar-init-container vs ECS task with `dependsOn`) that's better made alongside the readiness review than mid-implementation. Gating: lands in Phase 14 as part of T294's readiness review. |
+| **T262 Grafana dashboard panel JSON for per-tenant rate-limit metrics** | Phase 10 closure deferral | Phase 10 registered the metrics (`decision_total`, `throttled_total`, `redis_unavailable_total`) and they appear on `/metrics` immediately. The Grafana panel JSON update for the `CollectMind end-to-end` dashboard's per-tenant rate-limit row rolls into Phase 13 **T281** (cross-cutting observability). Same approach as feature 001's Phase 4 + Phase 5 split. Gating: Phase 13 T281. |
+| **T293 hot-store legacy-shape cleanup PR (one-time)** | Phase 11 watch-point 2 deadline | The dual-read fallback in `get_signal_for_tenant()` is gated by `HOT_STORE_LEGACY_FALLBACK_ENABLED`. After the 24h+epsilon rollover window in production, ops sets the env to `false` and (a) the `LegacyKeyShapeError` guard fires on any legacy-shape observation, AND (b) a follow-up PR removes the fallback branch + the env var + the `get_signal_for_tenant_strict()` variant from `src/collectmind/redis/client.py`. Lands in Phase 14 as **T293** per `specs/002-multi-tenant-isolation/tasks.md`. Gating: 24h post-production-cutover, after a `SCAN` against the production Redis confirms zero legacy-shape keys remain. |
 | **Operator-issuer JWKS host-DNS resolution in unit tests** | `tests/unit/test_operator_principal.py` (2 skipped tests) | Host-side Python can't resolve `operator-issuer:8088` (the Compose-internal hostname). 2 unit tests skipped with explicit reason; refactor to FastAPI TestClient + in-memory JWKS lands in Phase 14 polish alongside the readiness review. Gating: Phase 14 polish; not a security regression (the same property is exercised live via the running orchestration-api in T232). |
 
 ## What is deferred (named gaps; not silent)

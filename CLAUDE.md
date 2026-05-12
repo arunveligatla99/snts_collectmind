@@ -3,9 +3,9 @@
 This file is the entry point for any Claude Code session opened against this repo. Read it first. Read the files at the end before doing any work.
 
 <!-- SPECKIT START -->
-**Feature 001 — `policy-loop-vertical-slice` — is shipped** (commits `990b437` + `a49939e`). Closure artifact at [`docs/runbook/feature-001-readiness-review.md`](docs/runbook/feature-001-readiness-review.md): every NON-NEGOTIABLE constitutional principle (IV, VII, IX, X, XI, XIII, XIV) is PASS with a named artifact.
+**Feature 001 — `policy-loop-vertical-slice` — is shipped** (`990b437` + `a49939e`). Closure artifact at [`docs/runbook/feature-001-readiness-review.md`](docs/runbook/feature-001-readiness-review.md): every NON-NEGOTIABLE constitutional principle (IV, VII, IX, X, XI, XIII, XIV) is PASS with a named artifact.
 
-**Feature 002 — `multi-tenant-isolation` — is in PLAN phase** (branch `002-multi-tenant-isolation`; spec at `d085f19` includes clarify-session-2026-05-11 resolutions). Plan artifacts under `specs/002-multi-tenant-isolation/`. Three new ADRs at status **Proposed**: ADR-0007 (RLS hardening + break-glass), ADR-0008 (per-tenant rate limiting + hot-store migration), ADR-0009 (tenant-vehicle ownership store). Plan-output artifacts are the source of truth pending `/speckit.tasks`.
+**Feature 002 — `multi-tenant-isolation` — MID-FLIGHT at Phase 11 of 14** (branch `002-multi-tenant-isolation`; HEAD `f460e7c`). Phases 8, 9, 10, 11 closed. Phase 12 (US4 deployment-client tenant scoping) is the next phase. Phase 13 (observability cross-cutting) and Phase 14 (polish + closure) follow. Phase status table at [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
 
 Active feature artifacts (feature 002):
 
@@ -15,6 +15,7 @@ Active feature artifacts (feature 002):
 - Data model: `specs/002-multi-tenant-isolation/data-model.md`
 - Contracts: `specs/002-multi-tenant-isolation/contracts/` (audit-admin.v1.yaml NEW; orchestration-api + query-api delta files for v1.1.0)
 - Quickstart: `specs/002-multi-tenant-isolation/quickstart.md`
+- Tasks: `specs/002-multi-tenant-isolation/tasks.md` (T200-T271 closed; T272-T296 remain)
 
 Feature 001 artifacts remain load-bearing as the inherited baseline (Spec Dependencies §):
 
@@ -50,9 +51,9 @@ ADRs live at `docs/adr/`. Drafting cadence and table of contents at `docs/adr/RE
 | ADR-0004 | Deterministic-fingerprint Policy Generator stub | Accepted |
 | ADR-0005 | SLM hosting topology on AWS — ECS-on-EC2 g5/g6 default | Accepted |
 | ADR-0006 | Dev-only `DevDefaultPolicyClient` for local-development workflows (no real SLM required) | Accepted |
-| ADR-0007 | Row-Level Security hardening posture + break-glass service-principal bypass | **Proposed** (feature 002 plan output; promotes to Accepted at feature 002 closure) |
-| ADR-0008 | Per-tenant ingress rate limiting + hot-store key migration mechanism | **Proposed** (feature 002 plan output; promotes to Accepted at feature 002 closure) |
-| ADR-0009 | Tenant-Vehicle Ownership store — mutable current row + append-only history | **Proposed** (feature 002 plan output; promotes to Accepted at feature 002 closure) |
+| ADR-0007 | Row-Level Security hardening posture + break-glass service-principal bypass | **Accepted** (promoted at Phase 9 closure; integration tier validates RESTRICTIVE+PERMISSIVE-baseline pattern + break-glass atomic audit + SET LOCAL ROLE connection-pool contract per Phase 9.b worked example) |
+| ADR-0008 | Per-tenant ingress rate limiting + hot-store key migration mechanism | **Proposed** (Phase 10 + Phase 11 implementation green; promotes to Accepted at feature-002 closure after production rate-limit verification on workflow_dispatch tier per Principle XIV — the token-bucket Lua + 3-branch middleware + failure-CLOSED + dual-read rollover are all locally green) |
+| ADR-0009 | Tenant-Vehicle Ownership store — mutable current row + append-only history | **Accepted** (promoted at Phase 9 closure; tenant_vehicles + tenant_vehicles_history tables in use; history immutability trigger + atomic `kind=vehicle_assignment_change` audit row both verified at integration tier) |
 
 ## Principles (load-bearing; do not relax silently)
 
