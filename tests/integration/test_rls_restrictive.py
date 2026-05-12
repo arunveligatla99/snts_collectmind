@@ -43,7 +43,19 @@ PG_CONTAINER = "collectmind-postgres"
 def _psql(sql: str) -> subprocess.CompletedProcess[str]:
     """Run SQL against the running Compose Postgres container."""
     return subprocess.run(
-        ["docker", "exec", "-i", PG_CONTAINER, "psql", "-U", "collectmind", "-d", "collectmind", "-v", "ON_ERROR_STOP=1"],
+        [
+            "docker",
+            "exec",
+            "-i",
+            PG_CONTAINER,
+            "psql",
+            "-U",
+            "collectmind",
+            "-d",
+            "collectmind",
+            "-v",
+            "ON_ERROR_STOP=1",
+        ],
         input=sql,
         capture_output=True,
         text=True,
@@ -65,6 +77,7 @@ def restrictive_rls():
     017 provisions the non-BYPASSRLS ``collectmind_tenant`` role required by these tests."""
     import asyncio
     import os
+
     from collectmind.registry.migrations.runner import apply_pending
 
     dsn = os.environ.get(
@@ -75,7 +88,7 @@ def restrictive_rls():
     yield
 
 
-def test_missing_context_returns_zero_rows(restrictive_rls) -> None:  # noqa: ARG001
+def test_missing_context_returns_zero_rows(restrictive_rls) -> None:
     """T224: SELECT under collectmind_tenant role with NO app.tenant_id GUC returns 0 rows."""
     tables = [
         "tenants",
@@ -89,10 +102,7 @@ def test_missing_context_returns_zero_rows(restrictive_rls) -> None:  # noqa: AR
         "erasure_requests",
     ]
     for table in tables:
-        result = _psql(
-            f"BEGIN; SET LOCAL ROLE collectmind_tenant; "
-            f"SELECT count(*) FROM {table}; ROLLBACK;"
-        )
+        result = _psql(f"BEGIN; SET LOCAL ROLE collectmind_tenant; SELECT count(*) FROM {table}; ROLLBACK;")
         if result.returncode != 0:
             pytest.fail(f"SELECT on {table} failed: {result.stderr}")
         digits = [line.strip() for line in result.stdout.split("\n") if line.strip().isdigit()]
@@ -102,7 +112,7 @@ def test_missing_context_returns_zero_rows(restrictive_rls) -> None:  # noqa: AR
         )
 
 
-def test_wrong_context_returns_zero_rows(restrictive_rls) -> None:  # noqa: ARG001
+def test_wrong_context_returns_zero_rows(restrictive_rls) -> None:
     """T225: app.tenant_id='tenant-a' query targeting tenant-b row returns 0 rows."""
     # Seed both tenants as superuser (BYPASSRLS) so we have known rows.
     setup = """
@@ -129,7 +139,7 @@ def test_wrong_context_returns_zero_rows(restrictive_rls) -> None:  # noqa: ARG0
     )
 
 
-def test_stale_gucs_fail_closed(restrictive_rls) -> None:  # noqa: ARG001
+def test_stale_gucs_fail_closed(restrictive_rls) -> None:
     """T226: stale GUC across transaction boundaries returns 0 rows (failure-closed)."""
     setup = """
     INSERT INTO tenants (tenant_id, display_name, oauth2_issuer, oauth2_audience)

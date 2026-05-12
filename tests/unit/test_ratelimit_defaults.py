@@ -25,9 +25,7 @@ DEFAULTS_PATH = Path(__file__).resolve().parents[2] / "src" / "collectmind" / "r
 
 def test_defaults_module_exists() -> None:
     """Red signal: file missing → Phase 10.b T257 pending."""
-    assert DEFAULTS_PATH.exists(), (
-        f"Phase 10.b T257 has not landed: {DEFAULTS_PATH} missing"
-    )
+    assert DEFAULTS_PATH.exists(), f"Phase 10.b T257 has not landed: {DEFAULTS_PATH} missing"
 
 
 def test_inbound_defaults_match_fr012() -> None:
@@ -70,12 +68,7 @@ def test_runbook_warns_against_matching_slo() -> None:
     """FR-012a contract: the runbook MUST warn operators against lowering the inbound
     default to "match the SLO." Phase 10.b T260 ships the runbook page; this test gates it.
     """
-    runbook = (
-        Path(__file__).resolve().parents[2]
-        / "observability"
-        / "runbooks"
-        / "ratelimit-sustained-throttle.md"
-    )
+    runbook = Path(__file__).resolve().parents[2] / "observability" / "runbooks" / "ratelimit-sustained-throttle.md"
     if not runbook.exists():
         pytest.fail(
             f"Phase 10.b T260 has not landed: {runbook} missing. "

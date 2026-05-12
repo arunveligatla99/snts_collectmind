@@ -106,10 +106,9 @@ def test_operator_jwt_accepted_at_break_glass_endpoint() -> None:
         timeout=5.0,
     )
     assert response.status_code != 401, (
-        f"FR-005a regression: operator JWT REJECTED at break-glass endpoint "
-        f"(401 = audience validation failed; should ACCEPT operator audience)"
+        "FR-005a regression: operator JWT REJECTED at break-glass endpoint "
+        "(401 = audience validation failed; should ACCEPT operator audience)"
     )
     assert response.status_code != 404, (
-        f"break-glass router not mounted: FastAPI returned 404 for "
-        f"{BREAK_GLASS_PATH}. Phase 9.b T237 is pending."
+        f"break-glass router not mounted: FastAPI returned 404 for {BREAK_GLASS_PATH}. Phase 9.b T237 is pending."
     )

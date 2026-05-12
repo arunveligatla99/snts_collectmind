@@ -78,9 +78,7 @@ def test_as2_cross_tenant_write_rejected_no_side_effects() -> None:
             "schema_version": "1.0.0",
         },
     )
-    assert response.status_code == 404, (
-        f"expected 404 on cross-tenant write; got {response.status_code}"
-    )
+    assert response.status_code == 404, f"expected 404 on cross-tenant write; got {response.status_code}"
     # No side effect: tenant-B should not see a finding with this id.
     token_b = mint_tenant_token(TENANT_B)
     check = httpx.get(

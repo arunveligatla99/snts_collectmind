@@ -85,8 +85,8 @@ def _enforce_smoke_slos(environment, **_kwargs) -> None:  # type: ignore[no-unty
 #     --headless --users 100 --spawn-rate 50 --run-time 60s \
 #     --host $ORCHESTRATION_BASE_URL --csv reports/multitenant
 #
-# Tenant-A bursts at 5× its FR-012 default (10000 r/s inbound); tenant-B sustains at
-# 0.5× its default (1000 r/s). Wait-times tuned so A drives the rate-limit limiter
+# Tenant-A bursts at 5x its FR-012 default (10000 r/s inbound); tenant-B sustains at
+# 0.5x its default (1000 r/s). Wait-times tuned so A drives the rate-limit limiter
 # while B stays comfortably under.
 #
 # Phase 10.a red-phase: SC-003 + SC-004 hooks fail because the rate-limit middleware
@@ -101,7 +101,7 @@ TENANT_B_P95_CEILING_MS = int(os.environ.get("TENANT_B_P95_CEILING_MS", "12000")
 if MULTI_TENANT_MODE:
 
     class TenantANoisyUser(HttpUser):
-        """Bursts tenant-A at 5× its configured rate limit. Expects ≥80% rejections."""
+        """Bursts tenant-A at 5x its configured rate limit. Expects ≥80% rejections."""
 
         wait_time = between(0.001, 0.002)  # tight loop → ~500-1000 r/s per worker
         weight = 5
@@ -119,7 +119,7 @@ if MULTI_TENANT_MODE:
             )
 
     class TenantBQuietUser(HttpUser):
-        """Tenant-B sustains at 0.5× its rate limit. Expects p95 unaffected by A's burst."""
+        """Tenant-B sustains at 0.5x its rate limit. Expects p95 unaffected by A's burst."""
 
         wait_time = between(1.5, 2.5)
         weight = 1
@@ -153,14 +153,17 @@ if MULTI_TENANT_MODE:
 
         if a_reject_ratio < TENANT_A_REJECT_RATIO_FLOOR:
             logger.error(
-                "SC-003 violation: tenant-A rejection ratio %.3f below floor %.3f "
-                "(429s out of %d requests = %d)",
-                a_reject_ratio, TENANT_A_REJECT_RATIO_FLOOR, a_total, a_429,
+                "SC-003 violation: tenant-A rejection ratio %.3f below floor %.3f (429s out of %d requests = %d)",
+                a_reject_ratio,
+                TENANT_A_REJECT_RATIO_FLOOR,
+                a_total,
+                a_429,
             )
             environment.process_exit_code = 1
         if b_p95_ms > TENANT_B_P95_CEILING_MS:
             logger.error(
                 "SC-004 violation: tenant-B p95 %.0fms exceeds ceiling %dms during A's burst",
-                b_p95_ms, TENANT_B_P95_CEILING_MS,
+                b_p95_ms,
+                TENANT_B_P95_CEILING_MS,
             )
             environment.process_exit_code = 1

@@ -41,10 +41,7 @@ POLL_INTERVAL_SECONDS = 1.0
 
 # Repo-root anchored so the test resolves correctly regardless of pytest cwd.
 RUNBOOK_PATH = (
-    Path(__file__).resolve().parent.parent.parent
-    / "observability"
-    / "runbooks"
-    / "deployment-tenant-mismatch.md"
+    Path(__file__).resolve().parent.parent.parent / "observability" / "runbooks" / "deployment-tenant-mismatch.md"
 )
 
 
@@ -95,18 +92,13 @@ def _post_synthetic_deployment_mismatch_alert(unique_tag: str, runbook_url: str)
             },
             "annotations": {
                 "summary": "deployment refused: policy.tenant_id != vehicle owning tenant",
-                "description": (
-                    "Fatal TenantVehicleMismatch raised at deployer node "
-                    "(FR-022 / ADR-0009 Part 6)"
-                ),
+                "description": ("Fatal TenantVehicleMismatch raised at deployer node (FR-022 / ADR-0009 Part 6)"),
                 "runbook_url": runbook_url,
             },
             "startsAt": timestamp,
         }
     ]
-    response = httpx.post(
-        f"{ALERTMANAGER_URL}/api/v2/alerts", json=payload, timeout=10.0
-    )
+    response = httpx.post(f"{ALERTMANAGER_URL}/api/v2/alerts", json=payload, timeout=10.0)
     response.raise_for_status()
     return alertname
 
@@ -119,10 +111,7 @@ def _wait_for_capture(alertname: str, deadline_seconds: float) -> dict[str, Any]
                 if alert.get("labels", {}).get("alertname") == alertname:
                     return alert
         time.sleep(POLL_INTERVAL_SECONDS)
-    raise AssertionError(
-        f"webhook did not receive alert {alertname!r} within {deadline_seconds}s "
-        f"(SC-012 deadline)"
-    )
+    raise AssertionError(f"webhook did not receive alert {alertname!r} within {deadline_seconds}s (SC-012 deadline)")
 
 
 def test_deployment_tenant_mismatch_alert_reaches_webhook_with_runbook() -> None:
@@ -140,9 +129,7 @@ def test_deployment_tenant_mismatch_alert_reaches_webhook_with_runbook() -> None
 
     unique_tag = uuid.uuid4().hex[:8]
     # The path is what Phase 12 documents in the orchestration-api's alert label.
-    runbook_url = (
-        "http://runbooks.local/observability/runbooks/deployment-tenant-mismatch.md"
-    )
+    runbook_url = "http://runbooks.local/observability/runbooks/deployment-tenant-mismatch.md"
     alertname = _post_synthetic_deployment_mismatch_alert(unique_tag, runbook_url)
 
     captured = _wait_for_capture(alertname, ALERT_DEADLINE_SECONDS)
@@ -152,12 +139,10 @@ def test_deployment_tenant_mismatch_alert_reaches_webhook_with_runbook() -> None
         f"FR-024 violation: alert severity not 'page'; got {captured['labels']!r}"
     )
     assert captured["labels"]["slo"] == "SC-012", (
-        f"Principle XI violation: alert missing SC-012 SLO tag; "
-        f"got {captured['labels']!r}"
+        f"Principle XI violation: alert missing SC-012 SLO tag; got {captured['labels']!r}"
     )
     assert captured["annotations"]["runbook_url"] == runbook_url, (
-        f"FR-024 violation: runbook_url annotation not preserved through routing; "
-        f"got {captured['annotations']!r}"
+        f"FR-024 violation: runbook_url annotation not preserved through routing; got {captured['annotations']!r}"
     )
 
     # T278: the runbook file MUST exist on disk. This is the canonical red signal until

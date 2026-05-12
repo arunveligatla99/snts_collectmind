@@ -20,7 +20,6 @@ Anchors: FR-017 / Principle IX / Principle IV.
 from __future__ import annotations
 
 import httpx
-import pytest
 
 from tests.conftest import (
     ORCHESTRATION_BASE_URL,
@@ -96,9 +95,7 @@ def test_auth_failure_does_not_advance_ratelimit_counter() -> None:
             json=body,
             timeout=5.0,
         )
-        assert response.status_code == 401, (
-            f"unauthenticated request should 401; got {response.status_code}"
-        )
+        assert response.status_code == 401, f"unauthenticated request should 401; got {response.status_code}"
 
     after_throttled = _metric_value("collectmind_ratelimit_throttled_total")
     after_unavailable = _metric_value("collectmind_ratelimit_redis_unavailable_total")

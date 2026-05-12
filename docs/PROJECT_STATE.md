@@ -1,11 +1,11 @@
 # Project State — CollectMind
 
-**Updated**: 2026-05-11 (Phase 13 closure)
+**Updated**: 2026-05-12 (Phase 14 closure — feature 002 SHIPPED)
 **Branch**: `002-multi-tenant-isolation`
 **Constitution**: v1.0.1 at `.specify/memory/constitution.md`
-**Status**: **Feature 001 shipped** (`990b437` + `a49939e`). **Feature 002 mid-flight at Phase 13 of 14** — US1 + US2 + US3 + US4 + observability cross-cutting closed (`1e6f76e` is the latest HEAD); Phase 14 (polish + closure) is the only remaining phase.
+**Status**: **Feature 001 shipped** (`990b437` + `a49939e`). **Feature 002 shipped** (all 14 phases closed). Closure artifact at [`docs/runbook/feature-002-readiness-review.md`](runbook/feature-002-readiness-review.md): every NON-NEGOTIABLE constitutional principle PASS with a named artifact; ADR-0007 + ADR-0009 promoted Accepted; ADR-0008 stays Proposed with documented workflow_dispatch SC-002/SC-003 gating.
 
-## Phase status (feature 002 — Phases 8-13 closed; Phase 14 remains)
+## Phase status (feature 002 — all phases closed)
 
 | Phase | Range | Status | Anchor commit(s) |
 |---|---|---|---|
@@ -15,6 +15,7 @@
 | Phase 11: US3 — Hot-store key tenancy (T264–T271) | Pure `_hot_store_key` helper; tenant-scoped read/write API; dual-read fallback during rollover window (new-shape FIRST, legacy on miss, env-gated); `LegacyKeyShapeError` Fatal guard post-rollover; hypothesis property test for structural cross-tenant key isolation | **Complete** | `2c93827` (tests red phase), `f460e7c` (impl) |
 | Phase 12: US4 — Deployment-client tenant scoping (T272–T279) | `ownership_cache.py` (write-through Redis + Postgres fallback, 1h TTL, failure-OPEN); `tenant_scope_check.py` (FIRST-gate validate_tenant_scope + Fatal `TenantVehicleMismatch`); `deployer/node.py` (`deploy_with_tenant_scope_check`: scope-check → atomic `kind=deployment_rejected` audit-row inside Fatal handler → re-raise; collector never invoked on mismatch); `deployment-tenant-mismatch.md` runbook | **Complete** | `707fb55` (tests red phase), `e48faed` (impl) |
 | Phase 13: Observability cross-cutting (T280-T284) | 6 alerts (BreakGlassInvoked split into single-invocation page + BreakGlassBurstInvocation critical; RatelimitSustainedThrottle, RatelimitRedisUnavailable, TenantConfigReloadStalled, DeploymentTenantMismatch); 3 new metric counters + 1 new gauge (operator_subject scoping; tenant_scope label dropped from break-glass counter per review); 4 dashboard panels (break-glass per operator, deployment-rejected per reason, cross-tenant access-attempts per endpoint NO-ALERT, rate-limit decision split per tenant); 3 new runbook pages; bidirectional CI guard with `.orphan-whitelist.yaml`; per-operator BreakGlassInvoked Alertmanager route | **Complete** | `03a0a48` (tests red phase), `701f32c` (amendments), `1e6f76e` (impl) |
+| Phase 14: Polish + closure (T285-T296) | T285 coverage sweep to 85.36% via 8 new unit-test files; T286 ruff + mypy strict clean; T287 OpenAPI dump diff regenerated; T288 + T289 mechanical guards re-verified; T290 PII-strip CI gate (closes SC-007 for both features); T291 threat model extended with 3 new threats; T292 quickstart re-run in 3 s (SC-008 600 s budget); T293 hot-store legacy-shape cleanup; T294 readiness review (every NON-NEGOTIABLE PASS); T295 + T296 closure docs | **Complete** | feature-002 closure |
 | Phase 13: Observability + operational surface (T280–T284) | `rules.yaml` additions (5 alerts: `RatelimitSustainedThrottle`, `BreakGlassInvoked`, `DeploymentTenantMismatch`, `TenantConfigReloadStalled`, `RatelimitRedisUnavailable`); Grafana panels (rolls in T262 deferral from Phase 10); alert-rule parity test extension; runbook-completeness CI gate extension | **Not started** | — |
 | Phase 14: Polish + closure (T285–T296) | Coverage sweep ≥85%; ruff + mypy strict; OpenAPI dump diff; threat model extension (3 new threats); T142 PII-strip CI gate; T244 Terraform `null_resource`; T293 hot-store legacy-shape cleanup PR (24h post-rollover); quickstart re-run; readiness review; ADR 0007/0008/0009 promotion | **Not started** | — |
 

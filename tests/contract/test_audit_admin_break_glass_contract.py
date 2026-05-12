@@ -49,8 +49,7 @@ def test_break_glass_operator_happy_path_returns_200_with_audit_list() -> None:
         timeout=5.0,
     )
     assert response.status_code == 200, (
-        f"break-glass operator JWT returned {response.status_code}; "
-        f"expected 200 (FR-005a)"
+        f"break-glass operator JWT returned {response.status_code}; expected 200 (FR-005a)"
     )
     payload = response.json()
     assert "events" in payload, "AuditEventList shape requires `events` field"
@@ -74,9 +73,7 @@ def test_break_glass_missing_reason_code_returns_400() -> None:
     # says 400. Accept either — both signal "malformed request" and the operator-side surface
     # treats them identically. A future ADR could pin the response code via a router-level
     # exception handler, but it's not load-bearing for FR-005a.
-    assert response.status_code in {400, 422}, (
-        f"missing reason_code → expected 400 or 422; got {response.status_code}"
-    )
+    assert response.status_code in {400, 422}, f"missing reason_code → expected 400 or 422; got {response.status_code}"
 
 
 def test_break_glass_invalid_reason_code_returns_400() -> None:
@@ -93,6 +90,4 @@ def test_break_glass_invalid_reason_code_returns_400() -> None:
         },
         timeout=5.0,
     )
-    assert response.status_code in {400, 422}, (
-        f"invalid reason_code → expected 400 or 422; got {response.status_code}"
-    )
+    assert response.status_code in {400, 422}, f"invalid reason_code → expected 400 or 422; got {response.status_code}"

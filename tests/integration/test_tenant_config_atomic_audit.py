@@ -33,7 +33,19 @@ PG_CONTAINER = "collectmind-postgres"
 
 def _psql(sql: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["docker", "exec", "-i", PG_CONTAINER, "psql", "-U", "collectmind", "-d", "collectmind", "-v", "ON_ERROR_STOP=1"],
+        [
+            "docker",
+            "exec",
+            "-i",
+            PG_CONTAINER,
+            "psql",
+            "-U",
+            "collectmind",
+            "-d",
+            "collectmind",
+            "-v",
+            "ON_ERROR_STOP=1",
+        ],
         input=sql,
         capture_output=True,
         text=True,
@@ -73,7 +85,7 @@ def feature_002_schema():
     """)
 
 
-def test_tenant_config_insert_produces_audit_row_in_same_transaction(feature_002_schema) -> None:  # noqa: ARG001
+def test_tenant_config_insert_produces_audit_row_in_same_transaction(feature_002_schema) -> None:
     """INSERT into tenant_config → trigger writes kind=tenant_config_change audit row atomically."""
     cid = f"test-tc-insert-{uuid.uuid4().hex}"
     tenant = "tenant-a"
@@ -99,7 +111,7 @@ def test_tenant_config_insert_produces_audit_row_in_same_transaction(feature_002
     )
 
 
-def test_tenant_config_update_produces_audit_row(feature_002_schema) -> None:  # noqa: ARG001
+def test_tenant_config_update_produces_audit_row(feature_002_schema) -> None:
     """UPDATE on tenant_config → trigger writes second kind=tenant_config_change row."""
     tenant = "tenant-b"
     cid_insert = f"test-tc-upd-i-{uuid.uuid4().hex}"

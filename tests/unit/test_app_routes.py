@@ -97,7 +97,6 @@ def client() -> TestClient:
     from collectmind.registry.tenant_config import (
         RateLimitBucket,
         TenantConfig,
-        TenantConfigRepository,
     )
 
     class _StubTenantConfigRepo:

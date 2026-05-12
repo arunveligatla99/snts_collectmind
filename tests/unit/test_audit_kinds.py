@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from collectmind.registry.audit import AuditEventWriter, _KIND_MIN_FIELDS
+from collectmind.registry.audit import _KIND_MIN_FIELDS, AuditEventWriter
 
 
 class _FakeConn:

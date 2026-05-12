@@ -72,8 +72,7 @@ async def test_key_carries_tenant_prefix(hot_store: HotStore) -> None:
     # Inspect via the underlying client.
     keys = await hot_store.client.keys("*tenant-prefix-test*")
     assert any("tenant-prefix-test:VIN-X:Vehicle.Speed" in key for key in keys), (
-        f"FR-018 violation: expected key 'tenant-prefix-test:VIN-X:Vehicle.Speed' in keyspace; "
-        f"got {keys!r}"
+        f"FR-018 violation: expected key 'tenant-prefix-test:VIN-X:Vehicle.Speed' in keyspace; got {keys!r}"
     )
 
 
@@ -96,9 +95,7 @@ _SAFE_SEGMENT = st.text(
     signal=_SAFE_SEGMENT,
 )
 @settings(max_examples=30, deadline=None)
-def test_property_cross_tenant_key_isolation(
-    tenant_a: str, tenant_b: str, vehicle_id: str, signal: str
-) -> None:
+def test_property_cross_tenant_key_isolation(tenant_a: str, tenant_b: str, vehicle_id: str, signal: str) -> None:
     """For every (tenant_a, tenant_b, vehicle, signal) where tenant_a != tenant_b, the
     hot-store key constructed from tenant_a's context MUST differ from the key constructed
     from tenant_b's context — even when vehicle_id + signal are identical.
@@ -130,7 +127,7 @@ def test_property_cross_tenant_key_isolation(
 
 # Allow running the async-fixture tests without loop fixture explicitness.
 @pytest.fixture(scope="module")
-def event_loop() -> asyncio.AbstractEventLoop:  # noqa: D401
+def event_loop() -> asyncio.AbstractEventLoop:
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()

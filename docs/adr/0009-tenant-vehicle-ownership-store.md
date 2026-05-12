@@ -1,7 +1,7 @@
 # ADR-0009: Tenant-Vehicle Ownership store — mutable current row + append-only history
 
-- Status: Proposed
-- Date: 2026-05-11
+- Status: **Accepted** (promoted at feature-002 Phase 9.b closure; Part 4 cache + Part 6 deployer hot-path validation re-attested at feature-002 closure per [`docs/runbook/feature-002-readiness-review.md`](../runbook/feature-002-readiness-review.md))
+- Date: 2026-05-11 (proposed); 2026-05-12 (accepted at feature-002 closure)
 - Deciders: Arun Veligatla (project author)
 - Constitutional principle: X (Vehicle Telemetry Data Handling); XVII (Audit Is a Feature, Not a Log); II (No Mocked Subsystems Where a Real One Is Feasible)
 

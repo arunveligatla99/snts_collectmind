@@ -1,6 +1,6 @@
 # ADR-0008: Per-tenant ingress rate limiting + hot-store key migration
 
-- Status: Proposed
+- Status: **Proposed** (Phase 10 + Phase 11 implementation green; Phase 14 T293 cleanup completed the hot-store rollover. Promotion to Accepted is gated on the first successful workflow_dispatch SC-002 + SC-003 runs against the rate-limited orchestration-api per Constitutional Principle XIV. Same gating pattern as ADR-0002's GPU-runner baseline. Tracked in [`docs/runbook/feature-002-readiness-review.md`](../runbook/feature-002-readiness-review.md) §ADR promotion decisions.)
 - Date: 2026-05-11
 - Deciders: Arun Veligatla (project author)
 - Constitutional principle: IX (Security as a First-Class Requirement); XI (Performance SLOs Are Measured, Not Aspired); XVII (Audit Is a Feature, Not a Log)

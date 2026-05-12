@@ -68,12 +68,12 @@ REQUIRED_SLO_TAGS: tuple[str, ...] = (
 #   - BreakGlassBurstInvocation: severity=critical, fires on 5-min rate > threshold per
 #     operator_subject. Two runbook pages, two distinct mitigation playbooks.
 REQUIRED_PHASE_13_ALERTS: tuple[str, ...] = (
-    "RatelimitSustainedThrottle",       # FR-016 page
-    "RatelimitRedisUnavailable",        # ADR-0008 Part 3 failure-CLOSED counter page
-    "BreakGlassInvoked",                # SC-013 single-invocation page (immediate)
-    "BreakGlassBurstInvocation",        # SC-013 burst-rate critical (5-min)
-    "TenantConfigReloadStalled",        # SC-014 LISTEN/NOTIFY lag page
-    "DeploymentTenantMismatch",         # SC-012 page-tier (feature 002 US4)
+    "RatelimitSustainedThrottle",  # FR-016 page
+    "RatelimitRedisUnavailable",  # ADR-0008 Part 3 failure-CLOSED counter page
+    "BreakGlassInvoked",  # SC-013 single-invocation page (immediate)
+    "BreakGlassBurstInvocation",  # SC-013 burst-rate critical (5-min)
+    "TenantConfigReloadStalled",  # SC-014 LISTEN/NOTIFY lag page
+    "DeploymentTenantMismatch",  # SC-012 page-tier (feature 002 US4)
 )
 
 

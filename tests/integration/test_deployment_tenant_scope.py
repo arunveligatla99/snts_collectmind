@@ -225,8 +225,7 @@ async def test_as2_mismatched_tenant_raises_fatal_no_outbound_audited() -> None:
 
     # FR-022: no outbound deploy attempted on a Fatal scope-check failure.
     assert collector.calls == [], (
-        f"FR-022 violation: outbound deploy invoked despite Fatal class; "
-        f"calls={collector.calls}"
+        f"FR-022 violation: outbound deploy invoked despite Fatal class; calls={collector.calls}"
     )
 
     # FR-023: exactly one kind=deployment_rejected row with the full minimum field set.
@@ -237,15 +236,9 @@ async def test_as2_mismatched_tenant_raises_fatal_no_outbound_audited() -> None:
     )
     payload = payloads[0]
     assert payload.get("policy_ref"), f"FR-023: missing policy_ref in {payload}"
-    assert payload.get("target_vehicle_id") == vid, (
-        f"FR-023: wrong target_vehicle_id in {payload}"
-    )
-    assert payload.get("policy_declared_tenant_id") == TENANT_A, (
-        f"FR-023: wrong policy_declared_tenant_id in {payload}"
-    )
-    assert payload.get("vehicle_owning_tenant_id") == TENANT_B, (
-        f"FR-023: wrong vehicle_owning_tenant_id in {payload}"
-    )
+    assert payload.get("target_vehicle_id") == vid, f"FR-023: wrong target_vehicle_id in {payload}"
+    assert payload.get("policy_declared_tenant_id") == TENANT_A, f"FR-023: wrong policy_declared_tenant_id in {payload}"
+    assert payload.get("vehicle_owning_tenant_id") == TENANT_B, f"FR-023: wrong vehicle_owning_tenant_id in {payload}"
 
 
 @pytest.mark.asyncio
@@ -284,6 +277,5 @@ async def test_as3_fatal_supersedes_recoverable_retry() -> None:
 
     # FR-022 strong form: Fatal class supersedes Recoverable retry; collector never invoked.
     assert collector.calls == 0, (
-        f"FR-022 violation: Fatal class did not supersede Recoverable retry; "
-        f"collector invoked {collector.calls} times"
+        f"FR-022 violation: Fatal class did not supersede Recoverable retry; collector invoked {collector.calls} times"
     )

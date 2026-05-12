@@ -132,9 +132,7 @@ def test_find_orphan_runbooks_respects_whitelist(tmp_path: Path) -> None:
     synthetic_runbook = tmp_path / "operational-reference.md"
     synthetic_runbook.write_text("# Op-ref\n\n## Symptoms\n\nnone\n", encoding="utf-8")
     orphans = fn({"groups": []}, tmp_path, whitelist={"operational-reference.md"})
-    assert "operational-reference.md" not in orphans, (
-        f"find_orphan_runbooks did not honor the whitelist; got {orphans}"
-    )
+    assert "operational-reference.md" not in orphans, f"find_orphan_runbooks did not honor the whitelist; got {orphans}"
 
 
 def test_orphan_whitelist_file_exists_at_canonical_path() -> None:
@@ -146,9 +144,7 @@ def test_orphan_whitelist_file_exists_at_canonical_path() -> None:
     The file's shape is a single top-level ``whitelist:`` key whose value is a list of
     runbook basenames (e.g. ``slm-container-oom.md``).
     """
-    whitelist_path = (
-        REPO_ROOT / "observability" / "runbooks" / ".orphan-whitelist.yaml"
-    )
+    whitelist_path = REPO_ROOT / "observability" / "runbooks" / ".orphan-whitelist.yaml"
     assert whitelist_path.is_file(), (
         f"Phase 13 T283 has not landed: orphan-whitelist file missing at "
         f"{whitelist_path}. Per Phase 13 review the whitelist MUST live at this "

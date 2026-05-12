@@ -40,9 +40,7 @@ from pathlib import Path
 from collectmind.observability import dashboard_provisioner as dp
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DASHBOARD_PATH = (
-    REPO_ROOT / "observability" / "grafana" / "dashboards" / "collectmind-end-to-end.json"
-)
+DASHBOARD_PATH = REPO_ROOT / "observability" / "grafana" / "dashboards" / "collectmind-end-to-end.json"
 
 
 # Phase 13 T281 metric-declaration contract. Each entry is the BASE series name; the
@@ -105,10 +103,7 @@ def test_phase_13_dashboard_validate_returns_no_drift() -> None:
     undeclared reference means the panel renders zero data in production. The check is
     the canonical Phase 4 dashboard-provisioner guard from feature 001."""
     errors = dp.validate_dashboard(DASHBOARD_PATH)
-    assert not errors, (
-        "dashboard_provisioner.validate_dashboard() returned errors:\n  - "
-        + "\n  - ".join(errors)
-    )
+    assert not errors, "dashboard_provisioner.validate_dashboard() returned errors:\n  - " + "\n  - ".join(errors)
 
 
 def test_cross_tenant_counter_has_no_alert_in_rules_yaml() -> None:

@@ -81,8 +81,7 @@ def test_lua_source_returns_decision_and_retry_hint(lua_source: str) -> None:
     assert "return" in lua_source, "Lua script must explicitly return a value"
     # Look for a return that yields a Lua table (the {decision, ...} idiom).
     assert re.search(r"return\s*\{", lua_source), (
-        "Lua script must return a table {decision, remaining|retry_after_ms}; "
-        "found scalar return instead"
+        "Lua script must return a table {decision, remaining|retry_after_ms}; found scalar return instead"
     )
 
 
@@ -91,9 +90,7 @@ def test_lua_source_returns_decision_and_retry_hint(lua_source: str) -> None:
     sustained_rps=st.integers(min_value=1, max_value=10_000),
     burst_capacity=st.integers(min_value=1, max_value=20_000),
 )
-def test_first_call_returns_allow_and_burst_minus_one(
-    sustained_rps: int, burst_capacity: int, script_sha: str
-) -> None:
+def test_first_call_returns_allow_and_burst_minus_one(sustained_rps: int, burst_capacity: int, script_sha: str) -> None:
     """A fresh bucket key starts at burst_capacity; first call MUST allow."""
     if burst_capacity < sustained_rps:
         # Postgres-side check (FR-013a) enforces burst_capacity >= sustained_rps; hypothesis
@@ -128,8 +125,7 @@ def test_burst_capped_after_long_idle(script_sha: str) -> None:
     assert int(result[0]) == 1, "after long idle, fresh allow"
     remaining = int(result[1])
     assert remaining <= burst_capacity - 1, (
-        f"after long idle, tokens must be capped at burst_capacity; got {remaining} > "
-        f"{burst_capacity - 1}"
+        f"after long idle, tokens must be capped at burst_capacity; got {remaining} > {burst_capacity - 1}"
     )
 
 

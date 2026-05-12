@@ -210,6 +210,8 @@ jobs:
       - run: python scripts/check_no_todo_fixme.py
       - run: python scripts/check_slm_pinning.py
       - run: python scripts/check_runbook_completeness.py
+      - name: PII-strip CI gate (T290 / SC-007)
+        run: PYTHONPATH=src python scripts/check_log_pii.py
       - name: OpenAPI dump drift (T132)
         run: |
           PYTHONPATH=src python -m collectmind.openapi.dump > docs/api/openapi.yaml.generated

@@ -27,7 +27,7 @@ import pytest
 
 # Import the existing TenantConfigRepository from Phase 9.b. The LISTEN-consumer extension
 # lands in Phase 10.b T256.
-from collectmind.registry.tenant_config import TenantConfigRepository, _TTLCache
+from collectmind.registry.tenant_config import _TTLCache
 
 pytestmark = pytest.mark.asyncio
 
@@ -83,9 +83,7 @@ async def test_listen_notify_consumer_exists_in_config_cache_module() -> None:
     ``TenantConfigCacheConsumer`` (or equivalent) class. Test fails with ImportError.
     """
     config_cache_module = Path(__file__).resolve().parents[2] / "src" / "collectmind" / "ratelimit" / "config_cache.py"
-    assert config_cache_module.exists(), (
-        f"Phase 10.b T256 has not landed: {config_cache_module} missing"
-    )
+    assert config_cache_module.exists(), f"Phase 10.b T256 has not landed: {config_cache_module} missing"
     # Try to import the LISTEN consumer. The exact name is implementation-detail; the test
     # accepts any of a few common shapes that the Phase-10.b impl might pick.
     try:

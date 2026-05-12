@@ -73,9 +73,11 @@ def _provision_low_rate_limit(tenant: str, sustained: int = 1, burst: int = 2) -
       updated_by_subject = EXCLUDED.updated_by_subject;
     """
     subprocess.run(
-        ["docker", "exec", "-i", "collectmind-postgres", "psql", "-U", "collectmind",
-         "-d", "collectmind"],
-        input=sql, capture_output=True, text=True, timeout=10,
+        ["docker", "exec", "-i", "collectmind-postgres", "psql", "-U", "collectmind", "-d", "collectmind"],
+        input=sql,
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
     # Wait for the LISTEN/NOTIFY-driven cache invalidation (worst case: 5s TTL fallback).
     time.sleep(6)
@@ -83,11 +85,13 @@ def _provision_low_rate_limit(tenant: str, sustained: int = 1, burst: int = 2) -
 
 def _clear_rate_limit_override(tenant: str) -> None:
     import subprocess
+
     subprocess.run(
-        ["docker", "exec", "-i", "collectmind-postgres", "psql", "-U", "collectmind",
-         "-d", "collectmind"],
+        ["docker", "exec", "-i", "collectmind-postgres", "psql", "-U", "collectmind", "-d", "collectmind"],
         input=f"DELETE FROM tenant_config WHERE tenant_id = '{tenant}';",
-        capture_output=True, text=True, timeout=10,
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
 
 

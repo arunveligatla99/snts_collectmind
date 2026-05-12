@@ -37,7 +37,19 @@ SC_010_BUDGET_SECONDS = 30.0
 
 def _psql(sql: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["docker", "exec", "-i", PG_CONTAINER, "psql", "-U", "collectmind", "-d", "collectmind", "-v", "ON_ERROR_STOP=1"],
+        [
+            "docker",
+            "exec",
+            "-i",
+            PG_CONTAINER,
+            "psql",
+            "-U",
+            "collectmind",
+            "-d",
+            "collectmind",
+            "-v",
+            "ON_ERROR_STOP=1",
+        ],
         input=sql,
         capture_output=True,
         text=True,
@@ -82,10 +94,10 @@ def _ensure_clean_state() -> None:
 def _restore_feature_002_state() -> None:
     """Re-apply the full feature-002 migration chain so downstream tests see consistent state."""
     import asyncio
+
     from collectmind.registry.migrations.runner import apply_pending
-    asyncio.run(apply_pending(
-        "postgresql://collectmind:localdev@localhost:5433/collectmind"
-    ))
+
+    asyncio.run(apply_pending("postgresql://collectmind:localdev@localhost:5433/collectmind"))
 
 
 def test_012_forward_then_backward_within_budget() -> None:
@@ -97,9 +109,7 @@ def test_012_forward_then_backward_within_budget() -> None:
     # Confirm RESTRICTIVE policies in place (9 RESTRICTIVE + 9 PERMISSIVE_baseline = 18 total).
     inspect = _psql("SELECT count(*) FROM pg_policies WHERE permissive = 'RESTRICTIVE';")
     digits = [line.strip() for line in inspect.stdout.split("\n") if line.strip().isdigit()]
-    assert digits and digits[0] == "9", (
-        f"expected 9 RESTRICTIVE policies; got {digits}"
-    )
+    assert digits and digits[0] == "9", f"expected 9 RESTRICTIVE policies; got {digits}"
 
     bck = _apply("012_rls_restrictive", "down")
     assert bck <= SC_010_BUDGET_SECONDS, f"backward took {bck:.2f}s"
@@ -107,9 +117,7 @@ def test_012_forward_then_backward_within_budget() -> None:
     # Confirm PERMISSIVE-only policies restored.
     inspect = _psql("SELECT count(*) FROM pg_policies WHERE policyname LIKE '%_permissive';")
     digits = [line.strip() for line in inspect.stdout.split("\n") if line.strip().isdigit()]
-    assert digits and digits[0] == "9", (
-        f"expected 9 PERMISSIVE policies post-rollback; got {digits}"
-    )
+    assert digits and digits[0] == "9", f"expected 9 PERMISSIVE policies post-rollback; got {digits}"
 
     # Restore feature-002 schema so downstream tests see consistent state.
     _restore_feature_002_state()
@@ -129,18 +137,14 @@ def test_012_through_016_full_forward_chain_within_budget() -> None:
     try:
         for name in migrations:
             elapsed_total += _apply(name, "up")
-        assert elapsed_total <= SC_010_BUDGET_SECONDS, (
-            f"full forward chain took {elapsed_total:.2f}s (>budget)"
-        )
+        assert elapsed_total <= SC_010_BUDGET_SECONDS, f"full forward chain took {elapsed_total:.2f}s (>budget)"
         # Confirm new objects exist.
         inspect = _psql(
             "SELECT count(*) FROM pg_tables WHERE tablename IN "
             "('tenant_config', 'tenant_vehicles', 'tenant_vehicles_history');"
         )
         digits = [line.strip() for line in inspect.stdout.split("\n") if line.strip().isdigit()]
-        assert digits and digits[0] == "3", (
-            f"expected 3 new tables; got {digits}"
-        )
+        assert digits and digits[0] == "3", f"expected 3 new tables; got {digits}"
     finally:
         # Always roll back so the next test sees clean state.
         _psql("""

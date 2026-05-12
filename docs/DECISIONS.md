@@ -240,6 +240,30 @@ The DISTINCT metrics (`ratelimit_redis_unavailable_total` for 503, `ratelimit_th
 
 **Why this matters**: Future limiter-style primitives (audit-storm dampener in feature 005, circuit breaker on the downstream Collector AI client in feature 004) will inherit this shape. The three-branch pattern is the canonical "no fallthrough" implementation; an integration test that exercises EACH branch independently is the canonical proof.
 
+## 2026-05-12 — Phase 14 closure: ADR-0008 stays Proposed with documented workflow_dispatch gating (same pattern as ADR-0002)
+
+**Decision**: At feature-002 closure, ADR-0008 (per-tenant rate limiting + hot-store key migration) remains at status `Proposed` with a gating note that names the production-verification trigger: the first successful workflow_dispatch SC-002 + SC-003 runs against the rate-limited orchestration-api. ADR-0007 (RLS hardening + break-glass) and ADR-0009 (tenant-vehicle ownership) promote from Proposed to Accepted at this closure. The asymmetry is deliberate.
+
+**Why this matters**: ADR-0007 + ADR-0009 ship structural primitives (RLS policies, atomic-audit triggers, append-only history, deployer Fatal class) that are fully verifiable from the local stack — every property is exercised by an integration test against the real local Compose stack at SC-013/SC-014 invariants. There is no remaining production-only behavior to verify; promoting is the right move.
+
+ADR-0008 is different. The rate-limit middleware + token-bucket Lua + 3-branch failure-CLOSED posture are all green locally and tested at the unit + integration tier. What CANNOT be verified from the local stack is the SC-002 binding contract (1000 events/s/tenant sustained ≥99.9% success under the limiter's ceilings) + the SC-003 24-hour soak with ≤5% memory growth + the SC-005 latency-preservation budget under sustained load. Those measurements require workflow_dispatch + nightly runs at production-equivalent scale. Promoting ADR-0008 at this closure would be fabrication; the constitution's Principle XI ("SLOs measured, not aspired") forbids it. The matching precedent is ADR-0002, which stays at Proposed pending the GPU-runner-based eval baseline.
+
+The structural pattern: an ADR-promotion decision at feature closure depends on whether the local-stack evidence covers the ADR's binding contract. When yes (architectural primitives, schema invariants, atomic-audit triggers) → Accepted. When no (load behavior, soak behavior, latency-under-rate-limit) → Proposed with a documented gating trigger naming the precise condition that will let the next reviewer promote without re-deriving. Future ADRs at feature-closure inherit this distinction.
+
+## 2026-05-12 — Phase 14 closure: T293 cleanup keeps the Fatal guard on the legacy hot-store API (defense-in-depth over completionist deletion)
+
+**Decision**: The Phase 14 T293 hot-store legacy-shape cleanup removes the dual-read fallback branch + the `HOT_STORE_LEGACY_FALLBACK_ENABLED` env var + the `_legacy_fallback_enabled()` helper + the `_legacy_key()` helper + the `get_signal_for_tenant_strict()` debug variant. It DOES NOT remove the `LegacyKeyShapeError` class or the legacy single-tenant `get_signal` / `put_signal` methods on `HotStore`. Those methods now raise `LegacyKeyShapeError` unconditionally — defense-in-depth Fatal guard for any feature-001-era caller that survived the rollover.
+
+**Why this matters**: The Phase 11 spec for T293 said "remove T270's Fatal-error guard since the path is now unreachable." That assumes a perfect rollover — every caller migrated cleanly. The Phase 14 review chose the more conservative posture: keep the surface area on the class so any pre-cutover code that survived (a vestigial unit test, a debugging helper, a stale runbook example) trips a clear Fatal at call time rather than silently constructing a single-tenant key. The cost is ~10 lines of code retained; the benefit is structural enforcement of the post-rollover invariant.
+
+This is the same shape as Phase 12's "structure over discipline" pattern: the deployer-node Fatal handler enforces FR-022 by topology, not by remembering to retry-check. The hot-store cleanup enforces FR-020 by an unconditional raise, not by trusting that every caller has migrated.
+
+## 2026-05-12 — Phase 14 closure: T285 coverage sweep follows the Phase-6 mocking pattern (unit tier widens, integration tier stays narrow)
+
+**Decision**: T285 brought line coverage from 77.89% (post Phase 13) to 85.36% by adding eight unit-test files targeting the lowest-coverage modules: `test_deployer_tenant_scope.py` + `test_ownership_cache.py` + `test_tenant_context_middleware.py` + `test_tenant_config_listen_consumer.py` + `test_ratelimit_middleware_helpers.py` + `test_auth_dependencies.py` + `test_feedback_scheduler.py` + `test_tenant_config_repo.py`. Each uses dependency-injection mocks (AsyncMock for asyncpg/redis-py, MagicMock for repos, fake event-loop doubles for asyncpg listeners). The integration tier is unchanged: the same 24 tests run against the real local Compose stack as at Phase 13 closure.
+
+**Why this matters**: This is the canonical Phase-6-feature-001 pattern restated at Phase 14. Two paths could have closed the gap: (a) refactor integration tests to run in-process via TestClient so they contribute to coverage, or (b) write unit tests with mocks. Path (a) violates Principle II ("no mocked subsystems where a real one is feasible") at the integration tier — the integration tests EXIST to exercise the real stack via HTTP. Path (b) keeps Principle II intact AND honors Principle IV's 85% floor by widening the test pyramid at the unit tier where mocking is the standard tool. The right answer was (b); the test pyramid widens at unit and stays narrow at integration. Future coverage-sweep work inherits this rule.
+
 ## 2026-05-11 — Phase 13 review: five binding decisions on the observability surface
 
 **Decision**: At Phase 13 kickoff the user reviewed the Phase 13.a red test design and locked five contracts before implementation:

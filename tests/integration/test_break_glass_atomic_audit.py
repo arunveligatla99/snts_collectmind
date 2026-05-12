@@ -41,7 +41,19 @@ PG_CONTAINER = "collectmind-postgres"
 
 def _psql(sql: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["docker", "exec", "-i", PG_CONTAINER, "psql", "-U", "collectmind", "-d", "collectmind", "-v", "ON_ERROR_STOP=1"],
+        [
+            "docker",
+            "exec",
+            "-i",
+            PG_CONTAINER,
+            "psql",
+            "-U",
+            "collectmind",
+            "-d",
+            "collectmind",
+            "-v",
+            "ON_ERROR_STOP=1",
+        ],
         input=sql,
         capture_output=True,
         text=True,
@@ -50,9 +62,7 @@ def _psql(sql: str) -> subprocess.CompletedProcess[str]:
 
 
 def _count_break_glass_rows_for(cid: str) -> int:
-    result = _psql(
-        f"SELECT count(*) FROM audit_events WHERE kind='break_glass' AND correlation_id='{cid}';"
-    )
+    result = _psql(f"SELECT count(*) FROM audit_events WHERE kind='break_glass' AND correlation_id='{cid}';")
     digits = [line.strip() for line in result.stdout.split("\n") if line.strip().isdigit()]
     return int(digits[0]) if digits else 0
 
@@ -75,9 +85,7 @@ def test_break_glass_invocation_writes_atomic_audit_row() -> None:
     assert response.status_code == 200, f"expected 200; got {response.status_code} (router missing? Phase 9.b T237)"
     # Audit row must have landed BEFORE the response returned.
     rows = _count_break_glass_rows_for(cid)
-    assert rows == 1, (
-        f"SC-013 violation: expected exactly 1 kind=break_glass row for cid={cid}; got {rows}"
-    )
+    assert rows == 1, f"SC-013 violation: expected exactly 1 kind=break_glass row for cid={cid}; got {rows}"
 
 
 def test_break_glass_audit_write_failure_rolls_back_select() -> None:
@@ -108,9 +116,7 @@ def test_break_glass_audit_write_failure_rolls_back_select() -> None:
         },
         timeout=5.0,
     )
-    assert response.status_code in {200, 500}, (
-        f"expected 200 or 500; got {response.status_code}"
-    )
+    assert response.status_code in {200, 500}, f"expected 200 or 500; got {response.status_code}"
     if response.status_code == 200:
         assert _count_break_glass_rows_for(cid) == 1
     else:

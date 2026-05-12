@@ -24,16 +24,8 @@ import pytest
 
 
 def test_ratelimit_middleware_module_exists() -> None:
-    middleware = (
-        Path(__file__).resolve().parents[2]
-        / "src"
-        / "collectmind"
-        / "ratelimit"
-        / "middleware.py"
-    )
-    assert middleware.exists(), (
-        f"Phase 10.b T255 has not landed: {middleware} missing"
-    )
+    middleware = Path(__file__).resolve().parents[2] / "src" / "collectmind" / "ratelimit" / "middleware.py"
+    assert middleware.exists(), f"Phase 10.b T255 has not landed: {middleware} missing"
 
 
 def test_ratelimit_log_event_passes_pii_processor() -> None:
@@ -52,15 +44,9 @@ def test_ratelimit_log_event_passes_pii_processor() -> None:
     }
     processed = _pii_processor(None, "info", raw_event)
     flat = str(processed)
-    assert "john.doe@example.com" not in flat, (
-        "SC-007 violation: email not stripped from rate-limit log event"
-    )
-    assert "+12025550100" not in flat, (
-        "SC-007 violation: E.164 phone number not stripped"
-    )
-    assert "47.6062" not in flat or "-122.3321" not in flat, (
-        "SC-007 violation: decimal lat/long pair not stripped"
-    )
+    assert "john.doe@example.com" not in flat, "SC-007 violation: email not stripped from rate-limit log event"
+    assert "+12025550100" not in flat, "SC-007 violation: E.164 phone number not stripped"
+    assert "47.6062" not in flat or "-122.3321" not in flat, "SC-007 violation: decimal lat/long pair not stripped"
     # tenant_id is a non-PII business identifier and MUST be retained.
     assert processed.get("tenant_id") == "tenant-a", "non-PII tenant_id must be retained"
     # The endpoint label is non-PII and MUST be retained.
@@ -73,13 +59,7 @@ def test_ratelimit_middleware_uses_pii_stripped_logger() -> None:
     ``structlog.get_logger`` (via ``observability.logging.get_logger``) which has the
     processor wired in the chain.
     """
-    middleware_path = (
-        Path(__file__).resolve().parents[2]
-        / "src"
-        / "collectmind"
-        / "ratelimit"
-        / "middleware.py"
-    )
+    middleware_path = Path(__file__).resolve().parents[2] / "src" / "collectmind" / "ratelimit" / "middleware.py"
     if not middleware_path.exists():
         pytest.fail(f"Phase 10.b T255 has not landed: {middleware_path} missing")
     source = middleware_path.read_text(encoding="utf-8")
