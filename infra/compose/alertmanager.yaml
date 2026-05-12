@@ -18,6 +18,16 @@ route:
   repeat_interval: 1h
   receiver: local-webhook
   routes:
+    # Phase 13 T280: BreakGlassInvoked routes per (operator_subject, reason_code)
+    # so each operator's invocation produces a distinct page even when fired close
+    # together. Operational requirement is single-event visibility per FR-005a/SC-013.
+    - matchers:
+        - alertname="BreakGlassInvoked"
+      receiver: local-webhook
+      group_by: ["alertname", "service", "operator_subject", "reason_code"]
+      group_wait: 0s
+      group_interval: 15s
+      repeat_interval: 1h
     - matchers:
         - severity="critical"
       receiver: local-webhook
