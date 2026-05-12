@@ -180,6 +180,11 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: bandit
         run: bandit -r src/collectmind -q
+      # semgrep is a CLI tool; its opentelemetry-api~=1.25.0 pin conflicts
+      # with collectmind's opentelemetry-api==1.29.0. Install via pipx so its
+      # deps live in an isolated venv and do not pollute the project resolver.
+      - name: semgrep install (pipx isolation)
+        run: pipx install semgrep==1.99.0
       - name: semgrep
         run: semgrep --config p/python --config p/security-audit --error src/collectmind
       - name: pip-audit
