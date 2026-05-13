@@ -156,6 +156,8 @@ jobs:
           file: infra/compose/orchestration-api/Dockerfile
           tags: collectmind/orchestration-api:ci
           load: true
+      - name: Prepare reports directory (for Trivy SARIF output)
+        run: mkdir -p reports
       - name: Trivy scan (informational; Phase 7 supply-chain-refresh deferral)
         # v0.28.0 + v0.29.0 transitively reference setup-trivy tags
         # (v0.2.1, v0.2.2) that no longer exist on the setup-trivy repo;
@@ -213,23 +215,35 @@ jobs:
       - name: bandit
         run: bandit -r src/collectmind -q
       # semgrep is a CLI tool; its opentelemetry-api~=1.25.0 pin conflicts
-      # with collectmind's opentelemetry-api==1.29.0. Install via pipx so
-      # its deps live in an isolated venv and do not pollute the project
-      # resolver. Two transitive pitfalls under semgrep 1.99.0:
-      #   - pipx defaults to the runner's system Python (3.12 on
-      #     ubuntu-latest), which no longer bundles setuptools.
-      #   - setuptools >= 80 split off `pkg_resources`, but semgrep's
-      #     pinned opentelemetry-instrumentation still does
-      #     `from pkg_resources import ...` at import time.
-      # Inject setuptools < 80 so pkg_resources is importable. Verify the
-      # install with `pipx list` for diagnostics.
-      - name: semgrep install (pipx isolation)
+      # with collectmind's opentelemetry-api==1.29.0. Install in a
+      # dedicated venv so its deps do not pollute the project resolver.
+      #
+      # pipx + `pipx inject setuptools<80` proved unreliable: pipx
+      # defaults to the runner's system Python (3.12 on ubuntu-latest);
+      # the venv it creates ships a setuptools that may already lack
+      # `pkg_resources`, and the inject was observed not to take effect.
+      #
+      # Why pkg_resources matters: semgrep 1.99.0 transitively pins
+      # `opentelemetry-instrumentation-requests~=0.46b0`, which pulls in
+      # `opentelemetry-instrumentation 0.46b0`. That release imports
+      # `pkg_resources` at module load. otel-instrumentation switched to
+      # `importlib.metadata` only at 0.50b0; pinning around semgrep 1.99.0
+      # is fixed below 0.50b0, so the pkg_resources path is unavoidable.
+      #
+      # Solution: build the semgrep venv from setup-python's Python
+      # 3.11.9 (which ships an older bundled setuptools that includes
+      # pkg_resources), explicitly upgrade to `setuptools<80` first
+      # (setuptools 80.0.0 removed pkg_resources from the default
+      # install), then install semgrep 1.99.0 into the same venv.
+      - name: semgrep install (dedicated venv)
         run: |
-          pipx install semgrep==1.99.0
-          pipx inject semgrep "setuptools<80"
-          pipx list
+          python -m venv /tmp/semgrep-venv
+          /tmp/semgrep-venv/bin/pip install --upgrade pip "setuptools<80"
+          /tmp/semgrep-venv/bin/pip install semgrep==1.99.0
+          /tmp/semgrep-venv/bin/python -c "import pkg_resources; print('pkg_resources OK:', pkg_resources.__file__)"
+          /tmp/semgrep-venv/bin/semgrep --version
       - name: semgrep
-        run: semgrep --config p/python --config p/security-audit --error src/collectmind
+        run: /tmp/semgrep-venv/bin/semgrep --config p/python --config p/security-audit --error src/collectmind
       - name: pip-audit
         # Add `--ignore-vuln GHSA-xxxx` per ignored CVE; document the rationale
         # in DECISIONS.md alongside the entry. Currently no ignores.
