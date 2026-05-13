@@ -131,9 +131,9 @@ def test_dashboard_json_is_well_formed(dashboard_doc: dict) -> None:
 def test_refresh_interval_meets_sc006(dashboard_doc: dict) -> None:
     refresh = dashboard_doc.get("refresh")
     seconds = _parse_refresh_to_seconds(refresh)
-    assert seconds <= MAX_REFRESH_SECONDS, (
-        f"refresh interval {refresh!r} ({seconds}s) exceeds SC-006 ceiling of {MAX_REFRESH_SECONDS}s (FR-015)"
-    )
+    assert (
+        seconds <= MAX_REFRESH_SECONDS
+    ), f"refresh interval {refresh!r} ({seconds}s) exceeds SC-006 ceiling of {MAX_REFRESH_SECONDS}s (FR-015)"
 
 
 def test_every_expr_references_a_declared_metric(dashboard_doc: dict) -> None:
@@ -167,9 +167,9 @@ def test_dashboard_contains_required_panels(dashboard_doc: dict) -> None:
     for required in REQUIRED_PANEL_TITLES:
         if not any(required in title for title in titles):
             missing.append(required)
-    assert not missing, (
-        f"dashboard missing required panel titles (FR-014 / T110): {missing}; dashboard panel titles present: {titles}"
-    )
+    assert (
+        not missing
+    ), f"dashboard missing required panel titles (FR-014 / T110): {missing}; dashboard panel titles present: {titles}"
 
 
 def test_time_to_deploy_panel_exposes_p50_p95_p99(dashboard_doc: dict) -> None:

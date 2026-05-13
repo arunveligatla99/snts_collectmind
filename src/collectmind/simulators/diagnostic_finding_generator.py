@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 class DiagnosticFindingGenerator:
     def __init__(self, seed: int = 0xCAFE) -> None:
-        self._random = random.Random(seed)
+        self._random = random.Random(seed)  # nosec B311 - deterministic test fixture generator, not security-sensitive
 
     def brake_wear_finding(
         self,

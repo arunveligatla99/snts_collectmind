@@ -23,9 +23,10 @@ variable "region" {
   default = "us-east-1"
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "vpc_id" {
   type        = string
-  description = "VPC ID from the networking module."
+  description = "VPC ID from the networking module. Reserved for the apply-tier orchestration-api ECS service wiring (T120 follow-up); declared here so the root module signature stays stable."
   default     = ""
 }
 
@@ -35,9 +36,10 @@ variable "private_subnet_ids" {
   default     = []
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "app_sg_id" {
   type        = string
-  description = "App security group ID from the networking module."
+  description = "App security group ID from the networking module. Reserved for the apply-tier orchestration-api ECS service wiring (T120 follow-up); declared here so the root module signature stays stable."
   default     = ""
 }
 
@@ -112,9 +114,9 @@ resource "aws_iam_role" "ecs_instance" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
+      Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
   tags = var.tags

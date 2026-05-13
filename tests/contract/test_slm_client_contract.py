@@ -82,9 +82,9 @@ def test_three_clients_agree_on_fixed_fingerprint(warmed_clients) -> None:
         response = client.generate(request)
         outputs[name] = json.dumps(response.policy, sort_keys=True, separators=(",", ":"))
     elapsed = time.perf_counter() - start
-    assert elapsed < WARM_PATH_BUDGET_SECONDS, (
-        f"warm-path wall time {elapsed:.1f}s exceeded {WARM_PATH_BUDGET_SECONDS}s budget"
-    )
+    assert (
+        elapsed < WARM_PATH_BUDGET_SECONDS
+    ), f"warm-path wall time {elapsed:.1f}s exceeded {WARM_PATH_BUDGET_SECONDS}s budget"
     distinct = set(outputs.values())
     assert len(distinct) == 1, (
         "PolicyGeneratorClient implementations disagreed on the fixed fingerprint:\n"

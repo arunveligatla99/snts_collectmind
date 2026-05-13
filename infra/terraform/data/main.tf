@@ -42,21 +42,21 @@ resource "aws_db_subnet_group" "postgres" {
 }
 
 resource "aws_db_instance" "postgres" {
-  identifier              = "collectmind-postgres"
-  engine                  = "postgres"
-  engine_version          = "16.4"
-  instance_class          = "db.t3.medium"
-  allocated_storage       = 50
-  storage_type            = "gp3"
-  storage_encrypted       = true
-  username                = "collectmind"
+  identifier                  = "collectmind-postgres"
+  engine                      = "postgres"
+  engine_version              = "16.4"
+  instance_class              = "db.t3.medium"
+  allocated_storage           = 50
+  storage_type                = "gp3"
+  storage_encrypted           = true
+  username                    = "collectmind"
   manage_master_user_password = true
-  db_subnet_group_name    = aws_db_subnet_group.postgres.name
-  vpc_security_group_ids  = var.data_sg_id != "" ? [var.data_sg_id] : []
-  multi_az                = false
-  backup_retention_period = 7
-  skip_final_snapshot     = true
-  tags                    = var.tags
+  db_subnet_group_name        = aws_db_subnet_group.postgres.name
+  vpc_security_group_ids      = var.data_sg_id != "" ? [var.data_sg_id] : []
+  multi_az                    = false
+  backup_retention_period     = 7
+  skip_final_snapshot         = true
+  tags                        = var.tags
 }
 
 resource "aws_elasticache_subnet_group" "redis" {

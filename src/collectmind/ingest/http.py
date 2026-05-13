@@ -61,10 +61,12 @@ async def post_finding(
         finding = DiagnosticFinding.model_validate(body)
     except ValidationError as exc:
         # Surface the first invalid field for ergonomics; full errors in details.
-        first = exc.errors()[0] if exc.errors() else {"loc": ["unknown"], "msg": "invalid"}
+        errors = exc.errors()
+        first_loc: tuple[int | str, ...] = errors[0]["loc"] if errors else ("unknown",)
+        first_msg: str = errors[0]["msg"] if errors else "invalid"
         raise SchemaValidationFailed(
-            field=".".join(str(p) for p in first.get("loc", ["unknown"])),
-            message=str(first.get("msg", "validation error")),
+            field=".".join(str(p) for p in first_loc),
+            message=first_msg,
         )
 
     payload_canonical = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
