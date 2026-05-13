@@ -89,12 +89,15 @@ describe("AuditChain", () => {
       kind: "break_glass" as const,
       correlation_id: "cid-x",
       occurred_at: "2026-05-13T12:01:00.000Z",
+      // OpenAPI's `extras` schema is open per the per-kind field set in the
+      // description; cast via `as never` to bypass the generated empty-record
+      // narrowing in the typed test surface.
       extras: {
         operator_principal_subject: "operator-alice",
         tenant_scope: "tenant-a",
         reason_code: "incident_response",
         correlation_id: "cid-x",
-      },
+      } as never,
     };
     const display = toDisplay(opEvt);
     expect(display.principal_subject).toBe("operator-alice");

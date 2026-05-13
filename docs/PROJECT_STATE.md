@@ -1,10 +1,11 @@
 # Project State — CollectMind
 
-**Updated**: 2026-05-13 (PR #1 merged to main; PR #2 open via `arun/develop`)
-**Branch**: `arun/develop` (carrier for PR #2; feature 002 + PR #1's 13 inaugural-CI fixes merged on top of post-PR-#1 main)
+**Updated**: 2026-05-14 (demo UI shipped on branch `arun/demo-ui`; live at GitHub Pages)
+**Branch**: `arun/demo-ui` (off `arun/develop`; carries the `demo/` Vite + React UI plus the demo-OpenAPI-types-diff CI guard)
 **Remote**: `github.com/arunveligatla99/snts_collectmind` (renamed from `collectmind` on 2026-05-13 — old remote had unrelated day-1…day-7 history; see DECISIONS.md)
 **Constitution**: v1.0.1 at `.specify/memory/constitution.md`
-**Status**: **Feature 001 shipped** (`990b437` + `a49939e`) and **merged to main on `snts_collectmind` via PR #1** (inaugural PR-tier CI green at run-id 25775623611, wall-clock 11m 2s under the 20 min SC-009 budget). **Feature 002 shipped** (all 14 phases closed). Closure artifact at [`docs/runbook/feature-002-readiness-review.md`](runbook/feature-002-readiness-review.md): every NON-NEGOTIABLE constitutional principle PASS with a named artifact; ADR-0007 + ADR-0009 promoted Accepted; ADR-0008 stays Proposed with documented workflow_dispatch SC-002/SC-003 gating. Feature 002 PR (#2 — `arun/develop` → `main`) currently open + iterating. SC-009 rolling-5-PR wall-clock window closed at 11m 2s on PR #1 with ~9 min headroom under budget + ~7 min under the 18 min warning threshold; `scripts/ci_wall_clock_window.py` aggregator stays gated to first 18-min trend per the Phase 7 entry below (no aggregator landed; not needed at inaugural measurement).
+**Demo URL**: <https://arunveligatla99.github.io/snts_collectmind/> (recorded-mode build; Vercel deploy path documented at [`demo/README.md`](../demo/README.md))
+**Status**: **Feature 001 shipped** (`990b437` + `a49939e`) and **merged to main on `snts_collectmind` via PR #1** (inaugural PR-tier CI green at run-id 25775623611, wall-clock 11m 2s under the 20 min SC-009 budget). **Feature 002 shipped** (all 14 phases closed). Closure artifact at [`docs/runbook/feature-002-readiness-review.md`](runbook/feature-002-readiness-review.md): every NON-NEGOTIABLE constitutional principle PASS with a named artifact; ADR-0007 + ADR-0009 promoted Accepted; ADR-0008 stays Proposed with documented workflow_dispatch SC-002/SC-003 gating. Feature 002 PR (#2 — `arun/develop` → `main`) currently open + iterating. **Demo UI shipped on `arun/demo-ui`**: 75 Vitest + RTL tests pass; coverage 95.99 % stmts / 95.99 % lines / 93.68 % funcs / 89.29 % branches on `demo/src/` (across-tier ≥85 % floor satisfied separately from backend); deployed to GitHub Pages because this session has no Vercel auth context (see 2026-05-14 DECISIONS entry). SC-009 rolling-5-PR wall-clock window closed at 11m 2s on PR #1 with ~9 min headroom under budget + ~7 min under the 18 min warning threshold; `scripts/ci_wall_clock_window.py` aggregator stays gated to first 18-min trend per the Phase 7 entry below (no aggregator landed; not needed at inaugural measurement).
 
 ## Phase status (feature 002 — all phases closed)
 
@@ -19,6 +20,40 @@
 | Phase 14: Polish + closure (T285-T296) | T285 coverage sweep to 85.36% via 8 new unit-test files; T286 ruff + mypy strict clean; T287 OpenAPI dump diff regenerated; T288 + T289 mechanical guards re-verified; T290 PII-strip CI gate (closes SC-007 for both features); T291 threat model extended with 3 new threats; T292 quickstart re-run in 3 s (SC-008 600 s budget); T293 hot-store legacy-shape cleanup; T294 readiness review (every NON-NEGOTIABLE PASS); T295 + T296 closure docs | **Complete** | `6b46c78` (impl + closure), `a9a6390` (T296 placeholder fixup) |
 
 Plan-output artifacts at [`specs/002-multi-tenant-isolation/`](../specs/002-multi-tenant-isolation/). Three ADRs under [`docs/adr/`](adr/) — see CLAUDE.md ADR table for current statuses.
+
+## Demo UI (interview deliverable, branch `arun/demo-ui`)
+
+Production-grade Vite + React + TypeScript app under [`demo/`](../demo/) that drives the diagnostic-to-collection loop end-to-end. Six routes (Overview, Operator, Audit, SLO, Tenants, Docs) over the three OpenAPI contracts. Two modes: **recorded** (bundled JSON fixtures, default; deployed-only build runs in this mode) and **live** (typed API client → local Compose stack on `:8081` via the Vite proxy). Tokens for live mode minted by [`demo/scripts/mint_tokens.sh`](../demo/scripts/mint_tokens.sh) into a gitignored `.env.local`; no tokens ship to the deployed build.
+
+| Phase | Range | Status | Anchor commit(s) |
+|---|---|---|---|
+| Phase 15: Demo UI scaffold + contracts | Vite 6 + React 18 + TS strict (noUncheckedIndexedAccess) + Tailwind 3 + TanStack Query 5 + Zustand 5 + React Router 6 + Mermaid 11 + Tremor 3; openapi-typescript generation against all three contracts; `scripts/check_openapi_types_diff.py` CI guard wired into `custom-guards` (parity with T132 OpenAPI dump-diff) | **Complete** | `8627aaa` |
+| Phase 15.b: API client + recorded-mode fixtures + components | Typed `apiCall` with live + recorded branches, ApiError surface, Authorization header injection; `resolveFixture` 3-step keying (method+path+principal+body → method+path+principal → method+path); 14 shared components (AuditChain unifier for query-side + operator-side audit events, Fr017aBadge, SloTile, MermaidDiagram, Layout shell, Header with recorded-snapshot banner, ModeToggle, ThemeToggle, ConnectivityDot polling /ready every 10 s, TokenChip, Footer); markdown renderer for /docs with build-time snapshot bundling via `scripts/bundle_content.mjs` (stamps git SHA into `.env.snapshot`) | **Complete** | `8627aaa` |
+| Phase 15.c: Routes + tests + readme | Six routes implemented; 75 Vitest + RTL tests covering API client (live + recorded), every endpoint wrapper, AuditChain, markdown renderer, every route, layout shell; coverage **95.99 %** stmts / **95.99 %** lines / **93.68 %** funcs / **89.29 %** branches on `demo/src/`; gate `--cov` thresholds `lines ≥ 85 · stmts ≥ 85 · funcs ≥ 85 · branches ≥ 80`; `demo/README.md` with stack + local run + Vercel deploy path + 5/10/15-min interview runbook; main `README.md` updated; `make demo/demo-test/demo-build/demo-record/demo-deploy` targets; PII gate `demo/scripts/check_fixtures_pii.py` PASS on the fixture pack | **Complete** | `8627aaa` |
+| Phase 15.d: Deploy | GitHub Pages at <https://arunveligatla99.github.io/snts_collectmind/> (gh-pages branch, force-pushed; `.nojekyll` flag; SPA 404→index fallback; `VITE_BASE_PATH=/snts_collectmind/` via `.env.production`; `loadEnv` in `vite.config.ts` so MSYS path-mangling under Git Bash on Windows doesn't corrupt the base). Vercel deploy path documented in `demo/README.md` (one command: `cd demo && vercel --prod` with the user's Vercel credentials) | **Complete** | `(this commit)` |
+
+### Demo test bar
+
+| Tier | Pass | Fail | Skip |
+|---|---|---|---|
+| Vitest (all files) | **75** | 0 | 0 |
+| Coverage statements | **95.99 %** | n/a | n/a |
+| Coverage lines | **95.99 %** | n/a | n/a |
+| Coverage functions | **93.68 %** | n/a | n/a |
+| Coverage branches | **89.29 %** | n/a | n/a |
+| TypeScript `tsc -b` | clean | n/a | n/a |
+| `scripts/check_openapi_types_diff.py` | PASS | n/a | n/a |
+| `demo/scripts/check_fixtures_pii.py` | PASS | n/a | n/a |
+| `scripts/check_no_todo_fixme.py` | PASS (excludes `/node_modules/`, `/coverage/`, `/dist/` from demo) | n/a | n/a |
+
+### Demo deferrals (named, not silent)
+
+| Item | Reason | Gating |
+|---|---|---|
+| **Fixture pack synthesized from documented constants vs. real Compose-stack capture** | This session's environment could not bring up the full Compose stack inside the build window; values derive from ADR-0002 (SLM repo + revision SHA), `policy_generator.py` (`_DEFAULT_DECODING_SEED = 0xC0FFEE`), `graph/session.py` (prompt template version `1.0.0`), and the feature-002 quickstart's tenant + vehicle ids. Schema-correct in every field. NOT a measurement fabrication (Principle XI) — the SLO numbers on `/slo` source to existing runbook artifacts. | One-shot: `bash demo/scripts/record_fixtures.sh` against a running Compose stack replaces the synthesized pack with a real-run capture. |
+| **`query-api.v1.yaml` `AuditEvent.kind` enum missing `deployment_rejected`** | Canonical contract's enum is stale relative to its own v1.1.0 description, the delta file, and the readiness review — all three name `deployment_rejected` as part of v1.1.0; only the enum schema lacks it. Demo renders the wider kind set via `DisplayAuditEvent`. | Phase 7: one-line `enum:` extension to `query-api.v1.yaml` + regenerate `docs/api/openapi.yaml` + regenerate `demo/src/api/types/query.d.ts`. |
+| **Vercel deploy path** | Session has no Vercel auth context (no `VERCEL_TOKEN`, no Vercel keyring entry; `vercel login` is an interactive web-OAuth flow). | One command with the user's Vercel credentials: `cd demo && vercel --prod`. `vercel.json` is in-place; the `.env.production` base path needs `VITE_BASE_PATH=/` (or unset) for the Vercel root-path build. |
+| **Mermaid bundle size** | ~950 kB minified (~285 kB gzipped) on the main chunk. Acceptable for an interview demo on the wired network paths the deployed URL traverses; Mermaid is only used on the landing route. | Lazy-load the `MermaidDiagram` component via `React.lazy` + `Suspense` if a bundle-size budget tightens. |
 
 ## Test bar at end of Phase 14 (feature 002 closure)
 

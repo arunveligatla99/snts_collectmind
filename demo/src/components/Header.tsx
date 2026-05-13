@@ -14,7 +14,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur">
       <div className="px-4 py-2.5 flex items-center gap-4">
-        <a href="/" className="flex items-center gap-2 shrink-0">
+        <a href={import.meta.env.BASE_URL} className="flex items-center gap-2 shrink-0">
           <div className="w-7 h-7 rounded-md bg-accent-500 grid place-items-center text-white font-bold">
             ◆
           </div>
