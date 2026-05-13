@@ -65,6 +65,23 @@ jobs:
     name: Unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # tests/unit/test_token_bucket_lua.py drives the ADR-0008 Part 2 token-
+    # bucket Lua script through SCRIPT LOAD + EVALSHA against a real Redis
+    # (the Lua script's atomicity contract cannot be meaningfully tested
+    # against a mock). Bring up Redis as a service container so the tests
+    # have a target at localhost:6379. Refactoring these into the
+    # integration tier (or testcontainers in-fixture) is the cleaner long-
+    # term answer; tracked as deferred tech-debt.
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -39,7 +39,7 @@ ignore = [
 [lint.per-file-ignores]
 # Tests: allow security-style + magic-value rules; PLC0415 for fixture-local
 # imports; B017 (blind exception) where the test verifies the broad catch.
-"tests/**" = ["S", "PLR2004", "PLC0415", "B017", "B018", "E501", "PLW1510", "ASYNC240"]
+"tests/**" = ["S", "PLR2004", "PLC0415", "B017", "B018", "E501", "PLW1510"]
 # Simulators and stub modules use non-cryptographic randomness deliberately.
 "src/collectmind/simulators/**" = ["S311"]
 "src/collectmind/deployer/simulator.py" = ["S311"]
