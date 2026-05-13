@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+.demo-tokens
+.env.local
+.env.*.local
+.env.snapshot
+*.log
+.vite
+.DS_Store

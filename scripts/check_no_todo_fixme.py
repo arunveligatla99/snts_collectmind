@@ -52,6 +52,10 @@ def _excluded(rel_posix: str) -> bool:
         return True
     if "__pycache__" in rel_posix:
         return True
+    if "/node_modules/" in rel_posix or rel_posix.endswith("/node_modules"):
+        return True
+    if "/coverage/" in rel_posix or "/dist/" in rel_posix:
+        return True
     if _VENV_HINT.search(rel_posix):
         return True
     return False

@@ -42,6 +42,16 @@ until curl -fsS http://localhost:8081/ready >/dev/null 2>&1; do sleep 2; done &&
 
 Then publish a brake-wear diagnostic finding and observe the end-to-end loop (token mint → finding → policy → deployment → outcome → audit chain) per the quickstart's smoke-test sequence.
 
+## Demo UI
+
+Production-grade Vite + React + TypeScript UI that drives the diagnostic-to-collection loop end-to-end. Runs against the local Compose stack in live mode (Vite proxy → orchestration-api on `:8081`), or against bundled JSON fixtures in recorded mode (no backend required).
+
+- **Local**: `make demo` (then http://localhost:5173)
+- **Deployed (recorded-only)**: see [`demo/README.md`](demo/README.md) for the Vercel deploy path and the interview runbook (5 / 10 / 15-min variants).
+- **Tests**: 75 Vitest + RTL tests; same ≥85% coverage floor as the backend, measured separately against `demo/src/` (`make demo-test`).
+
+The deployed build ships recorded-only on purpose — no public Compose stack, no tokens in the bundle. Live mode is local-dev-only.
+
 ## Documentation
 
 - **Session primer**: [`CLAUDE.md`](CLAUDE.md) — read first.

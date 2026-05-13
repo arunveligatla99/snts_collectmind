@@ -1,0 +1,19 @@
+{
+  "sha": "fbd95b6",
+  "date": "2026-05-13",
+  "files": [
+    "constitution.md",
+    "feature-001-readiness-review.md",
+    "feature-002-readiness-review.md",
+    "adrs/README.md",
+    "adrs/0001-pin-covesa-vss.md",
+    "adrs/0002-default-slm-qwen2-5-7b-instruct.md",
+    "adrs/0003-constrained-decoding-library.md",
+    "adrs/0004-fingerprint-stub.md",
+    "adrs/0005-slm-hosting-topology.md",
+    "adrs/0006-dev-default-policy-client.md",
+    "adrs/0007-rls-restrictive-and-break-glass.md",
+    "adrs/0008-per-tenant-rate-limiting.md",
+    "adrs/0009-tenant-vehicle-ownership-store.md"
+  ]
+}

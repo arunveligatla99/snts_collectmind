@@ -1,4 +1,4 @@
-.PHONY: up down wait-ready clean clean-weights migrations test test-unit test-contract test-integration load-smoke load-full soak eval lint typecheck coverage
+.PHONY: up down wait-ready clean clean-weights migrations test test-unit test-contract test-integration load-smoke load-full soak eval lint typecheck coverage demo demo-install demo-test demo-build demo-record demo-deploy
 
 COMPOSE_FILE ?= infra/compose/docker-compose.yaml
 COMPOSE := docker compose -f $(COMPOSE_FILE)
@@ -54,3 +54,23 @@ typecheck:
 
 coverage:
 	pytest --cov=src/collectmind --cov-report=term --cov-report=html
+
+# ------- demo UI -----------------------------------------------------------
+
+demo-install:
+	cd demo && npm install --no-audit --no-fund
+
+demo: demo-install
+	cd demo && npm run dev
+
+demo-build: demo-install
+	cd demo && npm run gen:types && npm run build
+
+demo-test: demo-install
+	cd demo && npm run test
+
+demo-record:
+	bash demo/scripts/record_fixtures.sh
+
+demo-deploy: demo-build
+	cd demo && npx vercel --prod
