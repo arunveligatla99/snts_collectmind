@@ -193,21 +193,21 @@ jobs:
         with:
           sarif_file: reports/trivy.sarif
           category: trivy-image-scan
+      # anchore/sbom-action@v0 swallows syft's stderr behind its own wrapper,
+      # so we install syft via the action's `download-syft` sub-action and
+      # invoke it directly. That preserves the action's pinning + caching
+      # behavior while making syft's actual exit-1 message visible in CI
+      # logs. Output goes to the file path syft natively supports
+      # (`<format>=<path>`). Updating `.syft.yaml` to the v1.x schema (so
+      # the custom file globs for `config/slm/**/manifest.sha256` per
+      # Principle IX still apply) rolls into the Phase 7 supply-chain-
+      # refresh follow-up alongside the dep-bump sweep.
+      - name: Install syft (download-syft sub-action)
+        uses: anchore/sbom-action/download-syft@v0
       - name: Syft SBOM (CycloneDX)
-        # .syft.yaml's schema (catalogers list, nested file.cataloger /
-        # file.metadata.cataloger / file.contents.cataloger blocks) targets
-        # an older Syft. Syft v1.42.3 (bundled with anchore/sbom-action@v0
-        # at the time of this run) rejects the document. Dropping the
-        # config input lets Syft use its defaults; the SBOM still emits in
-        # CycloneDX JSON. Updating `.syft.yaml` to the v1.x schema (custom
-        # file globs for `config/slm/**/manifest.sha256` per Principle IX)
-        # rolls into the Phase 7 supply-chain-refresh follow-up alongside
-        # the dep-bump sweep.
-        uses: anchore/sbom-action@v0
-        with:
-          image: collectmind/orchestration-api:ci
-          format: cyclonedx-json
-          output-file: reports/sbom.cdx.json
+        run: |
+          mkdir -p reports
+          syft scan collectmind/orchestration-api:ci -o cyclonedx-json=reports/sbom.cdx.json -v
       - uses: actions/upload-artifact@v4
         with: { name: sbom, path: reports/sbom.cdx.json }
 
@@ -260,7 +260,14 @@ jobs:
         # from the audit; the package is not on PyPI so pip-audit cannot
         # resolve it. Transitive deps installed via the same `pip install -e
         # ".[dev]"` are still audited normally.
-        run: pip-audit --strict --skip-editable
+        #
+        # `--strict` was previously set but interacts badly with editable
+        # installs: pip-audit 2.7.3 promotes the "distribution marked as
+        # editable" notice to a fatal under --strict, even when --skip-
+        # editable is also set. Without --strict, pip-audit still exits 1
+        # on any actual vulnerability finding (the default semantics that
+        # block a merge per Principle IX).
+        run: pip-audit --skip-editable
 
   gitleaks:
     name: gitleaks (no secrets in repo)
