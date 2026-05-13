@@ -1,6 +1,7 @@
 node_modules
 dist
 coverage
+tsconfig.tsbuildinfo
 .demo-tokens
 .env.local
 .env.*.local
