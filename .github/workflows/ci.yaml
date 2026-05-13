@@ -205,15 +205,18 @@ jobs:
       - name: Install syft (download-syft sub-action)
         uses: anchore/sbom-action/download-syft@v0
       - name: Syft SBOM (CycloneDX)
-        # `-c /dev/null` bypasses the project's stale `.syft.yaml` (whose
-        # `python-installed-package` + `python-package` cataloger names
-        # do not exist in syft v1.x; syft auto-loads it from cwd even
-        # when the action wrapper does not pass --config). The file
-        # itself stays in-repo as the input the Phase 7 supply-chain-
-        # refresh sweep will rewrite to the v1.x schema.
+        # syft auto-loads `.syft.yaml` from cwd; the in-repo file targets
+        # a pre-v1.x schema (cataloger names `python-installed-package` +
+        # `python-package` do not exist in syft v1.x). To bypass, pass
+        # an explicit empty config. syft v1.42.3 rejects `/dev/null`
+        # because it derives the config format from the file extension,
+        # so the bypass file must end in `.yaml`. The in-repo
+        # `.syft.yaml` stays as the input for the Phase 7 supply-chain-
+        # refresh sweep to rewrite per the v1.x schema.
         run: |
           mkdir -p reports
-          syft scan collectmind/orchestration-api:ci -c /dev/null -o cyclonedx-json=reports/sbom.cdx.json -v
+          : > /tmp/empty.yaml
+          syft scan collectmind/orchestration-api:ci -c /tmp/empty.yaml -o cyclonedx-json=reports/sbom.cdx.json -v
       - uses: actions/upload-artifact@v4
         with: { name: sbom, path: reports/sbom.cdx.json }
 
