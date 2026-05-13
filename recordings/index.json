@@ -1,0 +1,359 @@
+{
+  "POST /findings tenant-a {\"schema_version\":\"1.0.0\",\"finding_id\":\"f-tenant-a-001\",\"anomaly_type\":\"brake_wear_early_stage\",\"hypothesis_class\":\"BrakeWearHypothesisRule\",\"hypothesis_statement\":\"Front-left pad wear approaching threshold\",\"candidate_signals\":[\"Vehicle.Chassis.Axle.Row1.Wheel.Left.Brake.PadWear\",\"Vehicle.Powertrain.CombustionEngine.EngineOil.Temperature\"],\"vehicle_scope\":[\"VIN-AAAA-0001\"],\"upstream_confidence\":0.86}": {
+    "status": 202,
+    "body": {
+      "tenant_id": "tenant-a",
+      "finding_id": "f-tenant-a-001",
+      "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+      "accepted_at": "2026-05-13T12:00:00.123Z",
+      "idempotent_replay": false
+    }
+  },
+  "POST /findings tenant-a": {
+    "status": 202,
+    "body": {
+      "tenant_id": "tenant-a",
+      "finding_id": "f-tenant-a-001",
+      "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+      "accepted_at": "2026-05-13T12:00:00.123Z",
+      "idempotent_replay": false
+    }
+  },
+  "POST /findings tenant-b": {
+    "status": 202,
+    "body": {
+      "tenant_id": "tenant-b",
+      "finding_id": "f-tenant-b-001",
+      "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQB",
+      "accepted_at": "2026-05-13T12:00:00.418Z",
+      "idempotent_replay": false
+    }
+  },
+  "GET /audit/01HW1A2B3C4D5E6F7G8H9J0KQA tenant-a": {
+    "status": 200,
+    "body": [
+      {
+        "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-01",
+        "kind": "accepted",
+        "occurred_at": "2026-05-13T12:00:00.123Z",
+        "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+        "principal_subject": "tenant-a/clients/feature-001-default",
+        "inbound_schema_version": "1.0.0"
+      },
+      {
+        "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-02",
+        "kind": "generated",
+        "occurred_at": "2026-05-13T12:00:01.347Z",
+        "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+        "principal_subject": "graph/policy-generator",
+        "slm_repo": "Qwen/Qwen2.5-7B-Instruct",
+        "slm_revision_sha": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "slm_runtime": "vllm",
+        "slm_runtime_version": "0.20.1",
+        "slm_quantization": "bf16",
+        "slm_decoding_seed": 12648430,
+        "prompt_template_version": "1.0.0",
+        "policy_ref": {
+          "tenant_id": "tenant-a",
+          "policy_id": "pol-tenant-a-brake-wear",
+          "version": "1.0.0"
+        }
+      },
+      {
+        "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-03",
+        "kind": "validated",
+        "occurred_at": "2026-05-13T12:00:01.512Z",
+        "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+        "principal_subject": "graph/policy-validator",
+        "policy_ref": {
+          "tenant_id": "tenant-a",
+          "policy_id": "pol-tenant-a-brake-wear",
+          "version": "1.0.0"
+        }
+      },
+      {
+        "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-04",
+        "kind": "deployed",
+        "occurred_at": "2026-05-13T12:00:01.793Z",
+        "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+        "principal_subject": "graph/policy-deployer",
+        "policy_ref": {
+          "tenant_id": "tenant-a",
+          "policy_id": "pol-tenant-a-brake-wear",
+          "version": "1.0.0"
+        },
+        "deployment_ref": {
+          "tenant_id": "tenant-a",
+          "deployment_id": "dep-tenant-a-brake-wear-001",
+          "vehicle_scope": ["VIN-AAAA-0001"]
+        }
+      },
+      {
+        "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-05",
+        "kind": "outcome",
+        "occurred_at": "2026-05-13T12:00:04.214Z",
+        "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+        "principal_subject": "feedback/worker",
+        "time_acceleration_factor": 10000.0,
+        "outcome_ref": {
+          "outcome_id": "out-tenant-a-001",
+          "hypothesis_state": "confirmed",
+          "data_quality_score": 0.92,
+          "signals_collected_count": 248
+        }
+      }
+    ]
+  },
+  "GET /audit/01HW1A2B3C4D5E6F7G8H9J0KQB tenant-b": {
+    "status": 200,
+    "body": [
+      {
+        "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQB-01",
+        "kind": "accepted",
+        "occurred_at": "2026-05-13T12:00:00.418Z",
+        "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQB",
+        "principal_subject": "tenant-b/clients/feature-001-default",
+        "inbound_schema_version": "1.0.0"
+      },
+      {
+        "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQB-02",
+        "kind": "generated",
+        "occurred_at": "2026-05-13T12:00:01.611Z",
+        "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQB",
+        "principal_subject": "graph/policy-generator",
+        "slm_repo": "Qwen/Qwen2.5-7B-Instruct",
+        "slm_revision_sha": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "slm_runtime": "vllm",
+        "slm_runtime_version": "0.20.1",
+        "slm_quantization": "bf16",
+        "slm_decoding_seed": 12648430,
+        "prompt_template_version": "1.0.0",
+        "policy_ref": {
+          "tenant_id": "tenant-b",
+          "policy_id": "pol-tenant-b-brake-wear",
+          "version": "1.0.0"
+        }
+      },
+      {
+        "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQB-03",
+        "kind": "validated",
+        "occurred_at": "2026-05-13T12:00:01.788Z",
+        "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQB",
+        "principal_subject": "graph/policy-validator",
+        "policy_ref": {
+          "tenant_id": "tenant-b",
+          "policy_id": "pol-tenant-b-brake-wear",
+          "version": "1.0.0"
+        }
+      },
+      {
+        "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQB-04",
+        "kind": "deployed",
+        "occurred_at": "2026-05-13T12:00:02.061Z",
+        "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQB",
+        "principal_subject": "graph/policy-deployer",
+        "policy_ref": {
+          "tenant_id": "tenant-b",
+          "policy_id": "pol-tenant-b-brake-wear",
+          "version": "1.0.0"
+        },
+        "deployment_ref": {
+          "tenant_id": "tenant-b",
+          "deployment_id": "dep-tenant-b-brake-wear-001",
+          "vehicle_scope": ["VIN-BBBB-0001"]
+        }
+      },
+      {
+        "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQB-05",
+        "kind": "outcome",
+        "occurred_at": "2026-05-13T12:00:04.502Z",
+        "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQB",
+        "principal_subject": "feedback/worker",
+        "time_acceleration_factor": 10000.0,
+        "outcome_ref": {
+          "outcome_id": "out-tenant-b-001",
+          "hypothesis_state": "ruled_out",
+          "data_quality_score": 0.88,
+          "signals_collected_count": 217
+        }
+      }
+    ]
+  },
+  "GET /findings/f-tenant-a-001/outcome tenant-a": {
+    "status": 200,
+    "body": {
+      "outcome_id": "out-tenant-a-001",
+      "originating_finding": { "tenant_id": "tenant-a", "finding_id": "f-tenant-a-001" },
+      "policy_ref": { "tenant_id": "tenant-a", "policy_id": "pol-tenant-a-brake-wear", "version": "1.0.0" },
+      "hypothesis_state": "confirmed",
+      "evaluated_at": "2026-05-13T12:00:04.214Z",
+      "signals_collected_count": 248,
+      "data_quality_score": 0.92,
+      "evidence_summary": {
+        "rule": "BrakeWearHypothesisRule",
+        "threshold_inclusive": true,
+        "observed_pad_wear_mm": 2.3,
+        "threshold_pad_wear_mm": 2.5
+      }
+    }
+  },
+  "GET /findings/f-tenant-b-001/outcome tenant-b": {
+    "status": 200,
+    "body": {
+      "outcome_id": "out-tenant-b-001",
+      "originating_finding": { "tenant_id": "tenant-b", "finding_id": "f-tenant-b-001" },
+      "policy_ref": { "tenant_id": "tenant-b", "policy_id": "pol-tenant-b-brake-wear", "version": "1.0.0" },
+      "hypothesis_state": "ruled_out",
+      "evaluated_at": "2026-05-13T12:00:04.502Z",
+      "signals_collected_count": 217,
+      "data_quality_score": 0.88,
+      "evidence_summary": {
+        "rule": "BrakeWearHypothesisRule",
+        "threshold_inclusive": true,
+        "observed_pad_wear_mm": 3.1,
+        "threshold_pad_wear_mm": 2.5
+      }
+    }
+  },
+  "GET /policies/pol-tenant-a-brake-wear tenant-a": {
+    "status": 200,
+    "body": {
+      "policy_id": "pol-tenant-a-brake-wear",
+      "version": "1.0.0",
+      "signals": [
+        { "vss_name": "Vehicle.Chassis.Axle.Row1.Wheel.Left.Brake.PadWear", "sample_rate_hz": 1.0, "priority": 8 },
+        { "vss_name": "Vehicle.Powertrain.CombustionEngine.EngineOil.Temperature", "sample_rate_hz": 0.5, "priority": 5 }
+      ],
+      "trigger_conditions": [
+        { "kind": "threshold", "params": { "signal": "Vehicle.Chassis.Axle.Row1.Wheel.Left.Brake.PadWear", "op": ">=", "value": 2.5 } }
+      ],
+      "collection_window_hours": 72,
+      "hypothesis": "Front-left brake-pad wear within the early-warning band",
+      "vehicle_scope": ["VIN-AAAA-0001"],
+      "data_governance_flags": { "pii_consent": false, "has_pii_signal": false },
+      "confidence_threshold": 0.7,
+      "generated_from_session_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+      "originating_finding": { "tenant_id": "tenant-a", "finding_id": "f-tenant-a-001" },
+      "prompt_template_version": "1.0.0",
+      "slm_repo": "Qwen/Qwen2.5-7B-Instruct",
+      "slm_revision_sha": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "slm_runtime": "vllm",
+      "slm_runtime_version": "0.20.1",
+      "slm_quantization": "bf16",
+      "slm_decoding_seed": 12648430,
+      "created_at": "2026-05-13T12:00:01.347Z"
+    }
+  },
+  "GET /policies/pol-tenant-a-brake-wear tenant-b": {
+    "status": 404,
+    "body": {
+      "code": "NOT_FOUND",
+      "status": 404,
+      "reason": "Resource not found"
+    }
+  },
+  "GET /tenant-config/self tenant-a": {
+    "status": 200,
+    "body": {
+      "tenant_id": "tenant-a",
+      "inbound": { "sustained_rps": 100, "burst_capacity": 200 },
+      "query": { "sustained_rps": 100, "burst_capacity": 200 },
+      "source": "default"
+    }
+  },
+  "GET /tenant-config/self tenant-b": {
+    "status": 200,
+    "body": {
+      "tenant_id": "tenant-b",
+      "inbound": { "sustained_rps": 50, "burst_capacity": 100 },
+      "query": { "sustained_rps": 100, "burst_capacity": 200 },
+      "source": "override",
+      "updated_at": "2026-05-12T17:32:08.001Z"
+    }
+  },
+  "POST /audit/break-glass/query operator-alice {\"tenant_scope\":\"tenant-a\",\"correlation_id\":\"01HW1A2B3C4D5E6F7G8H9J0KQA\",\"reason_code\":\"incident_response\"}": {
+    "status": 200,
+    "body": {
+      "total": 6,
+      "events": [
+        {
+          "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-01",
+          "tenant_id": "tenant-a",
+          "kind": "generated",
+          "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+          "occurred_at": "2026-05-13T12:00:01.347Z",
+          "extras": {
+            "slm_repo": "Qwen/Qwen2.5-7B-Instruct",
+            "slm_revision_sha": "a09a35458c702b33eeacc393d103063234e8bc28",
+            "prompt_template_version": "1.0.0",
+            "slm_decoding_seed": 12648430,
+            "policy_ref": { "tenant_id": "tenant-a", "policy_id": "pol-tenant-a-brake-wear", "version": "1.0.0" }
+          }
+        },
+        {
+          "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-02",
+          "tenant_id": "tenant-a",
+          "kind": "validated",
+          "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+          "occurred_at": "2026-05-13T12:00:01.512Z",
+          "extras": { "policy_ref": { "tenant_id": "tenant-a", "policy_id": "pol-tenant-a-brake-wear", "version": "1.0.0" } }
+        },
+        {
+          "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-03",
+          "tenant_id": "tenant-a",
+          "kind": "deployed",
+          "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+          "occurred_at": "2026-05-13T12:00:01.793Z",
+          "extras": { "deployment_id": "dep-tenant-a-brake-wear-001", "vehicle_scope": ["VIN-AAAA-0001"] }
+        },
+        {
+          "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-04",
+          "tenant_id": "tenant-a",
+          "kind": "outcome",
+          "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+          "occurred_at": "2026-05-13T12:00:04.214Z",
+          "extras": { "outcome_id": "out-tenant-a-001", "hypothesis_state": "confirmed" }
+        },
+        {
+          "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-05",
+          "tenant_id": "tenant-a",
+          "kind": "break_glass",
+          "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+          "occurred_at": "2026-05-13T12:01:14.882Z",
+          "extras": {
+            "operator_principal_subject": "operator-alice",
+            "tenant_scope": "tenant-a",
+            "reason_code": "incident_response",
+            "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA"
+          }
+        },
+        {
+          "event_id": "01HW1A2B3C4D5E6F7G8H9J0KQA-06",
+          "tenant_id": "tenant-a",
+          "kind": "vehicle_assignment_change",
+          "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA",
+          "occurred_at": "2026-05-11T08:00:00.000Z",
+          "extras": {
+            "service_principal_subject": "service-principal://provisioning",
+            "vehicle_id": "VIN-AAAA-0001",
+            "prior_tenant_id": null,
+            "new_tenant_id": "tenant-a",
+            "reason_code": "initial_provisioning",
+            "correlation_id": "01HW1A2B3C4D5E6F7G8H9J0KQA"
+          }
+        }
+      ]
+    }
+  },
+  "POST /erasure-requests tenant-a {\"subject_kind\":\"vehicle\",\"subject_identifier\":\"VIN-AAAA-0001\",\"mode\":\"erased\"}": {
+    "status": 202,
+    "body": {
+      "request_id": "er-tenant-a-001",
+      "target_completion_at": "2026-06-12T12:00:00.000Z"
+    }
+  },
+  "GET /ready": {
+    "status": 200,
+    "body": { "status": "ready" }
+  }
+}
