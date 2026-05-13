@@ -56,17 +56,17 @@ def test_throttled_metric_is_registered() -> None:
     """Phase 10.b T258 must register ``collectmind_ratelimit_throttled_total`` even when
     no requests have hit the limit yet. Red signal: metric absent from /metrics scrape."""
     require_local_stack()
-    assert _metric_registered("collectmind_ratelimit_throttled_total"), (
-        "Phase 10.b T258 has not landed: collectmind_ratelimit_throttled_total not in /metrics"
-    )
+    assert _metric_registered(
+        "collectmind_ratelimit_throttled_total"
+    ), "Phase 10.b T258 has not landed: collectmind_ratelimit_throttled_total not in /metrics"
 
 
 def test_redis_unavailable_metric_is_registered() -> None:
     """Phase 10.b T258 must register ``collectmind_ratelimit_redis_unavailable_total``."""
     require_local_stack()
-    assert _metric_registered("collectmind_ratelimit_redis_unavailable_total"), (
-        "Phase 10.b T258 has not landed: collectmind_ratelimit_redis_unavailable_total not in /metrics"
-    )
+    assert _metric_registered(
+        "collectmind_ratelimit_redis_unavailable_total"
+    ), "Phase 10.b T258 has not landed: collectmind_ratelimit_redis_unavailable_total not in /metrics"
 
 
 def test_auth_failure_does_not_advance_ratelimit_counter() -> None:

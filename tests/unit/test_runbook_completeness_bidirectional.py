@@ -113,9 +113,9 @@ def test_find_orphan_runbooks_flags_synthetic_orphan(tmp_path: Path) -> None:
     synthetic_runbook.write_text("# Orphan\n\n## Symptoms\n\nnone\n", encoding="utf-8")
     # An empty rules doc has no alerts referencing the file; it MUST be flagged.
     orphans = fn({"groups": []}, tmp_path)
-    assert "orphan-with-no-alert.md" in orphans, (
-        f"find_orphan_runbooks failed to flag a synthetic orphan; got {orphans}"
-    )
+    assert (
+        "orphan-with-no-alert.md" in orphans
+    ), f"find_orphan_runbooks failed to flag a synthetic orphan; got {orphans}"
 
 
 def test_find_orphan_runbooks_respects_whitelist(tmp_path: Path) -> None:
@@ -157,6 +157,6 @@ def test_orphan_whitelist_file_exists_at_canonical_path() -> None:
         f"orphan-whitelist file shape invalid: expected top-level ``whitelist:`` key; "
         f"got {list(doc.keys()) if isinstance(doc, dict) else type(doc).__name__}"
     )
-    assert isinstance(doc["whitelist"], list), (
-        f"orphan-whitelist ``whitelist`` value MUST be a list; got {type(doc['whitelist']).__name__}"
-    )
+    assert isinstance(
+        doc["whitelist"], list
+    ), f"orphan-whitelist ``whitelist`` value MUST be a list; got {type(doc['whitelist']).__name__}"

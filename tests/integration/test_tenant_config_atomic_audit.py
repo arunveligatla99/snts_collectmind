@@ -106,9 +106,9 @@ def test_tenant_config_insert_produces_audit_row_in_same_transaction(feature_002
     assert result.returncode == 0, f"transaction failed: {result.stderr}"
     digits = [line.strip() for line in result.stdout.split("\n") if line.strip().isdigit()]
     # First (and only) digit on the count row → 1.
-    assert digits and digits[0] == "1", (
-        f"SC-014 violation: expected 1 kind=tenant_config_change row for cid={cid}; got {digits}"
-    )
+    assert (
+        digits and digits[0] == "1"
+    ), f"SC-014 violation: expected 1 kind=tenant_config_change row for cid={cid}; got {digits}"
 
 
 def test_tenant_config_update_produces_audit_row(feature_002_schema) -> None:
@@ -136,6 +136,6 @@ def test_tenant_config_update_produces_audit_row(feature_002_schema) -> None:
     result = _psql(sql)
     assert result.returncode == 0, f"transaction failed: {result.stderr}"
     digits = [line.strip() for line in result.stdout.split("\n") if line.strip().isdigit()]
-    assert digits and digits[0] == "1", (
-        f"SC-014 violation: UPDATE did not produce audit row for cid={cid_update}; got {digits}"
-    )
+    assert (
+        digits and digits[0] == "1"
+    ), f"SC-014 violation: UPDATE did not produce audit row for cid={cid_update}; got {digits}"

@@ -86,9 +86,9 @@ def test_as2_cross_tenant_write_rejected_no_side_effects() -> None:
         headers={"Authorization": f"Bearer {token_b}"},
         timeout=5.0,
     )
-    assert check.status_code == 404, (
-        f"cross-tenant write produced a side-effect visible to tenant-B; status={check.status_code}"
-    )
+    assert (
+        check.status_code == 404
+    ), f"cross-tenant write produced a side-effect visible to tenant-B; status={check.status_code}"
 
 
 def test_as4_cross_tenant_audit_query_returns_404() -> None:

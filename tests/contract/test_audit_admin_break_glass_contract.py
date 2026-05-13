@@ -48,9 +48,9 @@ def test_break_glass_operator_happy_path_returns_200_with_audit_list() -> None:
         json=body,
         timeout=5.0,
     )
-    assert response.status_code == 200, (
-        f"break-glass operator JWT returned {response.status_code}; expected 200 (FR-005a)"
-    )
+    assert (
+        response.status_code == 200
+    ), f"break-glass operator JWT returned {response.status_code}; expected 200 (FR-005a)"
     payload = response.json()
     assert "events" in payload, "AuditEventList shape requires `events` field"
     assert "total" in payload, "AuditEventList shape requires `total` field"

@@ -224,9 +224,9 @@ async def test_as2_mismatched_tenant_raises_fatal_no_outbound_audited() -> None:
         )
 
     # FR-022: no outbound deploy attempted on a Fatal scope-check failure.
-    assert collector.calls == [], (
-        f"FR-022 violation: outbound deploy invoked despite Fatal class; calls={collector.calls}"
-    )
+    assert (
+        collector.calls == []
+    ), f"FR-022 violation: outbound deploy invoked despite Fatal class; calls={collector.calls}"
 
     # FR-023: exactly one kind=deployment_rejected row with the full minimum field set.
     payloads = _deployment_rejected_payloads_for(cid)
@@ -276,6 +276,6 @@ async def test_as3_fatal_supersedes_recoverable_retry() -> None:
         )
 
     # FR-022 strong form: Fatal class supersedes Recoverable retry; collector never invoked.
-    assert collector.calls == 0, (
-        f"FR-022 violation: Fatal class did not supersede Recoverable retry; collector invoked {collector.calls} times"
-    )
+    assert (
+        collector.calls == 0
+    ), f"FR-022 violation: Fatal class did not supersede Recoverable retry; collector invoked {collector.calls} times"

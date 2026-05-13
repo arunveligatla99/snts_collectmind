@@ -82,9 +82,9 @@ def test_cross_tenant_access_returns_404(path: str, method: str, body: dict | No
         f"FR-025 violation: {method} {path} returned {response.status_code} for a "
         f"cross-tenant request (tenant-A JWT targeting tenant-B resource); MUST return 404."
     )
-    assert response.status_code == 404, (
-        f"FR-006 violation: {method} {path} returned {response.status_code}; expected 404."
-    )
+    assert (
+        response.status_code == 404
+    ), f"FR-006 violation: {method} {path} returned {response.status_code}; expected 404."
 
 
 def test_payload_tenant_id_mismatch_collapses_to_404() -> None:
@@ -103,6 +103,6 @@ def test_payload_tenant_id_mismatch_collapses_to_404() -> None:
         },
         timeout=5.0,
     )
-    assert response.status_code == 404, (
-        f"FR-007 violation: POST /findings with tenant_id mismatch returned {response.status_code}; expected 404."
-    )
+    assert (
+        response.status_code == 404
+    ), f"FR-007 violation: POST /findings with tenant_id mismatch returned {response.status_code}; expected 404."

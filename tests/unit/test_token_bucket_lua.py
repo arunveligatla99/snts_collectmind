@@ -80,9 +80,9 @@ def test_lua_source_returns_decision_and_retry_hint(lua_source: str) -> None:
     """Lua script returns a 2-tuple: (decision_int, remaining_or_retry_after_ms)."""
     assert "return" in lua_source, "Lua script must explicitly return a value"
     # Look for a return that yields a Lua table (the {decision, ...} idiom).
-    assert re.search(r"return\s*\{", lua_source), (
-        "Lua script must return a table {decision, remaining|retry_after_ms}; found scalar return instead"
-    )
+    assert re.search(
+        r"return\s*\{", lua_source
+    ), "Lua script must return a table {decision, remaining|retry_after_ms}; found scalar return instead"
 
 
 @settings(max_examples=50, deadline=None)
@@ -104,9 +104,9 @@ def test_first_call_returns_allow_and_burst_minus_one(sustained_rps: int, burst_
     assert isinstance(result, list) and len(result) >= 2
     decision, remaining = int(result[0]), int(result[1])
     assert decision == 1, "fresh bucket must allow first call"
-    assert remaining == burst_capacity - 1, (
-        f"fresh bucket should have burst_capacity-1 tokens remaining; got {remaining}"
-    )
+    assert (
+        remaining == burst_capacity - 1
+    ), f"fresh bucket should have burst_capacity-1 tokens remaining; got {remaining}"
 
 
 def test_burst_capped_after_long_idle(script_sha: str) -> None:
@@ -124,9 +124,9 @@ def test_burst_capped_after_long_idle(script_sha: str) -> None:
     result = client.evalsha(script_sha, 1, key, 3_600_000, sustained_rps, burst_capacity)
     assert int(result[0]) == 1, "after long idle, fresh allow"
     remaining = int(result[1])
-    assert remaining <= burst_capacity - 1, (
-        f"after long idle, tokens must be capped at burst_capacity; got {remaining} > {burst_capacity - 1}"
-    )
+    assert (
+        remaining <= burst_capacity - 1
+    ), f"after long idle, tokens must be capped at burst_capacity; got {remaining} > {burst_capacity - 1}"
 
 
 def test_reject_when_empty(script_sha: str) -> None:

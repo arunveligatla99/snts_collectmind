@@ -32,36 +32,36 @@ def test_inbound_defaults_match_fr012() -> None:
     """Inbound: 2000 r/s sustained + burst 4000."""
     from collectmind.ratelimit import defaults
 
-    assert defaults.DEFAULT_INBOUND_SUSTAINED_RPS == 2000, (
-        f"FR-012 violation: inbound sustained should be 2000; got {defaults.DEFAULT_INBOUND_SUSTAINED_RPS}"
-    )
-    assert defaults.DEFAULT_INBOUND_BURST == 4000, (
-        f"FR-012 violation: inbound burst should be 4000; got {defaults.DEFAULT_INBOUND_BURST}"
-    )
+    assert (
+        defaults.DEFAULT_INBOUND_SUSTAINED_RPS == 2000
+    ), f"FR-012 violation: inbound sustained should be 2000; got {defaults.DEFAULT_INBOUND_SUSTAINED_RPS}"
+    assert (
+        defaults.DEFAULT_INBOUND_BURST == 4000
+    ), f"FR-012 violation: inbound burst should be 4000; got {defaults.DEFAULT_INBOUND_BURST}"
 
 
 def test_query_defaults_match_fr012() -> None:
     """Query: 200 r/s sustained + burst 400."""
     from collectmind.ratelimit import defaults
 
-    assert defaults.DEFAULT_QUERY_SUSTAINED_RPS == 200, (
-        f"FR-012 violation: query sustained should be 200; got {defaults.DEFAULT_QUERY_SUSTAINED_RPS}"
-    )
-    assert defaults.DEFAULT_QUERY_BURST == 400, (
-        f"FR-012 violation: query burst should be 400; got {defaults.DEFAULT_QUERY_BURST}"
-    )
+    assert (
+        defaults.DEFAULT_QUERY_SUSTAINED_RPS == 200
+    ), f"FR-012 violation: query sustained should be 200; got {defaults.DEFAULT_QUERY_SUSTAINED_RPS}"
+    assert (
+        defaults.DEFAULT_QUERY_BURST == 400
+    ), f"FR-012 violation: query burst should be 400; got {defaults.DEFAULT_QUERY_BURST}"
 
 
 def test_burst_capacity_is_2x_sustained() -> None:
     """ADR-0008 Part 1: 2x SLO sustained / 4x SLO burst pattern (2x of sustained = burst)."""
     from collectmind.ratelimit import defaults
 
-    assert defaults.DEFAULT_INBOUND_BURST == defaults.DEFAULT_INBOUND_SUSTAINED_RPS * 2, (
-        "ADR-0008 Part 1: inbound burst = 2x inbound sustained"
-    )
-    assert defaults.DEFAULT_QUERY_BURST == defaults.DEFAULT_QUERY_SUSTAINED_RPS * 2, (
-        "ADR-0008 Part 1: query burst = 2x query sustained"
-    )
+    assert (
+        defaults.DEFAULT_INBOUND_BURST == defaults.DEFAULT_INBOUND_SUSTAINED_RPS * 2
+    ), "ADR-0008 Part 1: inbound burst = 2x inbound sustained"
+    assert (
+        defaults.DEFAULT_QUERY_BURST == defaults.DEFAULT_QUERY_SUSTAINED_RPS * 2
+    ), "ADR-0008 Part 1: query burst = 2x query sustained"
 
 
 def test_runbook_warns_against_matching_slo() -> None:

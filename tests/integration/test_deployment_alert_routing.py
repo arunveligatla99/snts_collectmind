@@ -135,15 +135,15 @@ def test_deployment_tenant_mismatch_alert_reaches_webhook_with_runbook() -> None
     captured = _wait_for_capture(alertname, ALERT_DEADLINE_SECONDS)
 
     # SC-012 / FR-024 contract carried by every fired alert.
-    assert captured["labels"]["severity"] == "page", (
-        f"FR-024 violation: alert severity not 'page'; got {captured['labels']!r}"
-    )
-    assert captured["labels"]["slo"] == "SC-012", (
-        f"Principle XI violation: alert missing SC-012 SLO tag; got {captured['labels']!r}"
-    )
-    assert captured["annotations"]["runbook_url"] == runbook_url, (
-        f"FR-024 violation: runbook_url annotation not preserved through routing; got {captured['annotations']!r}"
-    )
+    assert (
+        captured["labels"]["severity"] == "page"
+    ), f"FR-024 violation: alert severity not 'page'; got {captured['labels']!r}"
+    assert (
+        captured["labels"]["slo"] == "SC-012"
+    ), f"Principle XI violation: alert missing SC-012 SLO tag; got {captured['labels']!r}"
+    assert (
+        captured["annotations"]["runbook_url"] == runbook_url
+    ), f"FR-024 violation: runbook_url annotation not preserved through routing; got {captured['annotations']!r}"
 
     # T278: the runbook file MUST exist on disk. This is the canonical red signal until
     # Phase 12.b lands the runbook page (FR-024 / Principle VIII — "alert MUST link to a

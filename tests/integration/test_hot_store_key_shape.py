@@ -71,9 +71,9 @@ async def test_key_carries_tenant_prefix(hot_store: HotStore) -> None:
     await hot_store.put_signal_for_tenant("tenant-prefix-test", "VIN-X", "Vehicle.Speed", "1.0")
     # Inspect via the underlying client.
     keys = await hot_store.client.keys("*tenant-prefix-test*")
-    assert any("tenant-prefix-test:VIN-X:Vehicle.Speed" in key for key in keys), (
-        f"FR-018 violation: expected key 'tenant-prefix-test:VIN-X:Vehicle.Speed' in keyspace; got {keys!r}"
-    )
+    assert any(
+        "tenant-prefix-test:VIN-X:Vehicle.Speed" in key for key in keys
+    ), f"FR-018 violation: expected key 'tenant-prefix-test:VIN-X:Vehicle.Speed' in keyspace; got {keys!r}"
 
 
 # ─── Property test (user watch-point 3) ─────────────────────────────────────────
