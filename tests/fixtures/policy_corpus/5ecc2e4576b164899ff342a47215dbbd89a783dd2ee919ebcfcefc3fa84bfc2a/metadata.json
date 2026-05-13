@@ -1,0 +1,9 @@
+{
+  "slm_repo": "Qwen/Qwen2.5-7B-Instruct",
+  "slm_revision_sha": "a09a35458c702b33eeacc393d103063234e8bc28",
+  "runtime": "stub-bootstrap",
+  "runtime_version": "adr-0004",
+  "prompt_template_version": "1.0.0",
+  "recorded_at": "2026-05-09T00:00:00Z",
+  "note": "Bootstrap fixture committed in T103. Replace with a real-SLM recording during the workflow_dispatch corpus job."
+}

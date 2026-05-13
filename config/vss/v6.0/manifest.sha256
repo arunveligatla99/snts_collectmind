@@ -1,0 +1,7 @@
+# COVESA VSS v6.0 commit 20c609bf95c73b51d483fb8f81a099d1d5b73066
+# Source: https://github.com/COVESA/vehicle_signal_specification/releases/download/v6.0
+# Format: <sha256>  <asset>
+b77785180dbe7fc674e4965ab9c1c58dcc97433867cf4abf4e3f78c013550e78  vss.json
+6e8947c75e7ff794c75382343b69083abbda87d32d6d1842b06e86adc9cc95db  vss.csv
+442e8505cab7b94f5c74fb3d81ab2cd89098d31f79090c240c1f40f67d16b944  quantities.yaml
+f43f6240011f2191d376c24a6ff21429ac7f776da661a1ebc7fb4dcd6a8f0497  units.yaml

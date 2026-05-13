@@ -1,0 +1,46 @@
+# T124 — Syft configuration.
+#
+# Constitution Principle IX: "SBOM MUST be emitted on every build." Model
+# weights are treated as supply-chain artifacts and recorded in the SBOM
+# alongside Python deps. The SLM weight manifest at
+# `config/slm/qwen2.5-7b-instruct/manifest.sha256` is included as a custom
+# file-cataloger source so the SBOM lineage matches the supply-chain claim
+# the constitution makes.
+
+# Default output format is CycloneDX JSON; the CI workflow also emits SPDX
+# JSON via a second invocation for downstream tools.
+output: "cyclonedx-json"
+
+# Package catalogers to run by default. The Python set captures pip/poetry
+# /uv-managed deps. The 'image' catalogers capture base-image dependencies
+# in the application Docker image.
+catalogers:
+  - python
+  - python-package
+  - python-installed-package
+  - dpkg
+  - apk
+  - rpm
+
+# Additional file-cataloging entries. The model-weight manifest is the
+# supply-chain artifact for the SLM.
+file:
+  cataloger:
+    enabled: true
+    scope: all-layers
+  metadata:
+    cataloger:
+      enabled: true
+      scope: all-layers
+  contents:
+    cataloger:
+      enabled: true
+      globs:
+        - "config/slm/**/manifest.sha256"
+
+exclude:
+  - "**/.venv/**"
+  - "**/.venv-test/**"
+  - "**/__pycache__/**"
+  - "**/.hypothesis/**"
+  - "**/reports/**"

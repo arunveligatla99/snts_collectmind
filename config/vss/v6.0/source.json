@@ -1,0 +1,12 @@
+{
+  "assets": [
+    "vss.json",
+    "vss.csv",
+    "quantities.yaml",
+    "units.yaml"
+  ],
+  "commit": "20c609bf95c73b51d483fb8f81a099d1d5b73066",
+  "leaf_count": 1267,
+  "release_url": "https://github.com/COVESA/vehicle_signal_specification/releases/download/v6.0",
+  "tag": "v6.0"
+}

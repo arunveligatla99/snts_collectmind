@@ -1,0 +1,49 @@
+# PII-adjacent signals from COVESA VSS v6.0 (commit 20c609bf95c73b51d483fb8f81a099d1d5b73066).
+#
+# Every signal listed here requires `data_governance_flags.pii_consent = true` in any
+# CollectionPolicySpec that selects it (Constitution Principle X, Spec FR-006). The
+# validator rejects any policy that selects a listed signal without consent.
+#
+# This file is change-controlled by ADR per Principle X. Adding or removing a signal
+# branch requires a new ADR that supersedes ADR-0001 if the branch reflects a VSS
+# version change, or a feature ADR if the change is a project-level interpretation.
+
+categories:
+  precise_geolocation:
+    description: |
+      Vehicle position with sub-decametre resolution. Combined with timestamps these
+      reconstruct trips and routines and are individually identifiable.
+    branches:
+      - Vehicle.CurrentLocation
+      - Vehicle.CurrentLocation.Latitude
+      - Vehicle.CurrentLocation.Longitude
+      - Vehicle.CurrentLocation.Altitude
+      - Vehicle.CurrentLocation.Heading
+      - Vehicle.CurrentLocation.GNSSReceiver
+
+  driver_biometrics:
+    description: |
+      Signals derived from the driver's body or behavior. These directly identify or
+      profile an individual.
+    branches:
+      - Vehicle.Cabin.Driver.AttentiveProbability
+      - Vehicle.Cabin.Driver.HeartRate
+      - Vehicle.Cabin.Driver.IdentifierIssuer
+      - Vehicle.Cabin.Driver.IdentifierSubject
+      - Vehicle.Cabin.Driver.IsEyesOnRoad
+      - Vehicle.Cabin.Driver.IsHandsOnWheel
+
+  personal_usage_patterns:
+    description: |
+      Signals that reveal individual behavior or preferences when correlated. Each is
+      individually low-impact but the aggregate is identifying.
+    branches:
+      - Vehicle.Cabin.Driver.DistractionLevel
+      - Vehicle.Cabin.Infotainment.Media.Played.Title
+      - Vehicle.Cabin.Infotainment.Media.Played.Artist
+      - Vehicle.Cabin.HVAC.AmbientAirTemperature
+      - Vehicle.Cabin.SeatPosOccupancy
+
+# Signals matched as a prefix; e.g., "Vehicle.CurrentLocation" matches every signal
+# below that branch. The validator implements both exact-name and prefix matching.
+prefix_match: true

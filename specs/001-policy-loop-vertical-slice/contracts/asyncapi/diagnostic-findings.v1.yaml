@@ -1,0 +1,90 @@
+asyncapi: 3.0.0
+info:
+  title: CollectMind Diagnostic Findings event channel
+  version: 1.0.0
+  description: |
+    Inbound event stream of diagnostic findings produced by the upstream simulator (or, later, the real AI Technician).
+    Producer authenticates with OAuth2 client-credentials JWT; tenant_id claim is non-empty.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+servers:
+  local:
+    host: kafka:9092
+    protocol: kafka
+    description: Local Compose stack (KRaft, single broker)
+  cloud:
+    host: msk.collectmind.example.com:9094
+    protocol: kafka-secure
+    description: AWS MSK
+channels:
+  diagnostic-findings.v1:
+    address: diagnostic-findings.v1
+    messages:
+      DiagnosticFindingMessage:
+        $ref: '#/components/messages/DiagnosticFindingMessage'
+operations:
+  publishDiagnosticFinding:
+    action: send
+    channel:
+      $ref: '#/channels/diagnostic-findings.v1'
+    summary: Publish a diagnostic finding for the policy loop
+    messages:
+      - $ref: '#/channels/diagnostic-findings.v1/messages/DiagnosticFindingMessage'
+  receiveDiagnosticFinding:
+    action: receive
+    channel:
+      $ref: '#/channels/diagnostic-findings.v1'
+    summary: Consume diagnostic findings into the orchestration ingest worker
+    messages:
+      - $ref: '#/channels/diagnostic-findings.v1/messages/DiagnosticFindingMessage'
+components:
+  messages:
+    DiagnosticFindingMessage:
+      name: DiagnosticFinding
+      contentType: application/json
+      headers:
+        type: object
+        required: [tenant_id, schema_version, correlation_id]
+        properties:
+          tenant_id:
+            type: string
+            minLength: 1
+          schema_version:
+            type: string
+            pattern: '^1\.\d+\.\d+$'
+          correlation_id:
+            type: string
+            minLength: 1
+      payload:
+        $ref: '#/components/schemas/DiagnosticFinding'
+  schemas:
+    DiagnosticFinding:
+      type: object
+      required: [finding_id, anomaly_type, hypothesis_class, hypothesis_statement, candidate_signals, vehicle_scope, upstream_confidence]
+      properties:
+        finding_id:
+          type: string
+          minLength: 1
+        anomaly_type:
+          type: string
+          enum: [brake_wear_early_stage]
+        hypothesis_class:
+          type: string
+        hypothesis_statement:
+          type: string
+          maxLength: 4096
+        candidate_signals:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        vehicle_scope:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        upstream_confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0

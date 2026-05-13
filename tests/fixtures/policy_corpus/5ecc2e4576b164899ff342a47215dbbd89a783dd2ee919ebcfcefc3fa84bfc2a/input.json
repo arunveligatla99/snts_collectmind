@@ -1,0 +1,7 @@
+{
+  "session_id": "session-fixed-001",
+  "prompt_template_version": "1.0.0",
+  "prompt": "fixture-prompt-fixed",
+  "schema": {"type": "object", "required": ["policy_id", "version"]},
+  "decoding": {"temperature": 0.0, "top_p": 1.0, "top_k": -1, "seed": 12648430}
+}

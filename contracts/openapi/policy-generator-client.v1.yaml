@@ -1,0 +1,169 @@
+openapi: 3.1.0
+info:
+  title: PolicyGeneratorClient internal contract
+  version: 1.0.0
+  description: |
+    Internal contract for the Policy Generator node's HTTP boundary to the SLM container.
+    Three implementations satisfy this contract and pass the same contract test (per ADR-0003):
+      - vLLM (default GPU profile)
+      - llama.cpp (CPU fallback profile)
+      - FingerprintStubClient (deterministic stub for PR-tier load and soak; locked by ADR-0004)
+    A frontier-LLM stub also implements this surface but fails fast unless explicitly enabled (Principle XIII).
+  license:
+    name: Apache-2.0
+servers:
+  - url: http://slm-inference:8000
+    description: Local Compose stack
+  - url: https://slm.internal.collectmind/v1
+    description: Cloud (deployed; private networking only)
+paths:
+  /generate:
+    post:
+      operationId: generatePolicy
+      summary: Generate a CollectionPolicySpec under schema-constrained decoding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerationRequest'
+      responses:
+        '200':
+          description: Schema-valid CollectionPolicySpec
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationResponse'
+        '422':
+          description: Constraint violation (schema mask exhausted; treated as runtime fault per Principle XIII)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Inference runtime unavailable (weight digest mismatch, GPU OOM, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /healthz:
+    get:
+      operationId: healthz
+      summary: Liveness
+      responses:
+        '200':
+          description: OK
+  /readyz:
+    get:
+      operationId: readyz
+      summary: Readiness; verifies weight SHA against config/slm/qwen2.5-7b-instruct/manifest.sha256
+      responses:
+        '200':
+          description: Ready
+        '503':
+          description: Not ready (weight digest mismatch fails closed)
+  /info:
+    get:
+      operationId: info
+      summary: Return runtime, model, decoding parameters in effect
+      responses:
+        '200':
+          description: Runtime info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeInfo'
+components:
+  schemas:
+    GenerationRequest:
+      type: object
+      required: [session_id, prompt_template_version, prompt, schema, decoding]
+      properties:
+        session_id:
+          type: string
+          description: PolicyGenerationSession identifier; surfaced in audit records.
+        prompt_template_version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+        prompt:
+          type: string
+          description: The fully rendered prompt; the SLM container does not re-template.
+        schema:
+          type: object
+          description: JSON Schema derived from CollectionPolicySpec.model_json_schema().
+        decoding:
+          type: object
+          required: [temperature, top_p, top_k, seed]
+          properties:
+            temperature:
+              type: number
+              minimum: 0.0
+              maximum: 2.0
+              description: Pinned to 0 in CI per Principle XIV.
+            top_p:
+              type: number
+              minimum: 0.0
+              maximum: 1.0
+            top_k:
+              type: integer
+              minimum: -1
+              description: -1 disables top_k.
+            seed:
+              type: integer
+              description: Fixed per test in CI; recorded in audit records.
+        retry_context:
+          type: object
+          description: Validator errors injected on retry per Principle XII.
+          additionalProperties: true
+    GenerationResponse:
+      type: object
+      required: [policy, runtime_info]
+      properties:
+        policy:
+          description: A CollectionPolicySpec instance; schema is shared with the query API.
+          type: object
+        runtime_info:
+          $ref: '#/components/schemas/RuntimeInfo'
+        usage:
+          type: object
+          properties:
+            input_tokens:
+              type: integer
+            output_tokens:
+              type: integer
+            generation_latency_ms:
+              type: number
+    RuntimeInfo:
+      type: object
+      required: [slm_repo, slm_revision_sha, slm_runtime, slm_runtime_version, slm_quantization]
+      properties:
+        slm_repo:
+          type: string
+        slm_revision_sha:
+          type: string
+          minLength: 40
+          maxLength: 40
+        slm_runtime:
+          type: string
+          enum: [vllm, llama_cpp, stub]
+        slm_runtime_version:
+          type: string
+        slm_quantization:
+          type: string
+          enum: [bf16, gguf-q4_k_m, none]
+        constrained_decoding_library:
+          type: string
+          example: outlines==1.2.13
+    Error:
+      type: object
+      required: [code, status, reason]
+      properties:
+        code:
+          type: string
+        status:
+          type: integer
+        reason:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

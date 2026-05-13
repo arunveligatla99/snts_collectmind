@@ -1,0 +1,8 @@
+issuer: http://mock-issuer:8088
+audience: collectmind-api
+key_id: dev-key-1
+clients:
+  - client_id: feature-001-default
+    client_secret: local-dev-only
+    tenant_id: feature-001-default
+    scopes: [findings:write, findings:read]

@@ -1,0 +1,129 @@
+openapi: 3.1.0
+info:
+  title: CollectorAIClient downstream contract
+  version: 1.0.0
+  description: |
+    Documented contract for the downstream collection control plane.
+    Two implementations satisfy this contract and pass the same contract test:
+      - SimulatorCollectorAIClient (default in feature 001; in-process)
+      - RealCollectorAIClient (stub; fails fast with NOT_IMPLEMENTED unless feature-flagged)
+    The simulator can be configured to inject failures during integration tests.
+  license:
+    name: Apache-2.0
+servers:
+  - url: http://collector-ai-simulator:8080/v1
+    description: Local Compose stack
+paths:
+  /policies:
+    post:
+      operationId: deployPolicy
+      summary: Deploy a validated CollectionPolicySpec to a vehicle scope
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeployRequest'
+      responses:
+        '202':
+          description: Accepted for delivery
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployResponse'
+        '400':
+          description: Validation failure on the downstream side
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict with an existing active policy on the same scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Downstream temporarily unavailable; client retries with bounded backoff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /policies/{deployment_id}:
+    get:
+      operationId: getDeployment
+      summary: Get the status of a previously requested deployment
+      parameters:
+        - in: path
+          name: deployment_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployResponse'
+        '404':
+          description: Unknown deployment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    DeployRequest:
+      type: object
+      required: [tenant_id, policy_id, version, vehicle_scope, payload, payload_signature, signature_key_id]
+      properties:
+        tenant_id:
+          type: string
+        policy_id:
+          type: string
+        version:
+          type: string
+        vehicle_scope:
+          type: array
+          items:
+            type: string
+        payload:
+          type: object
+          description: Canonical serialized CollectionPolicySpec.
+        payload_signature:
+          type: string
+          format: byte
+        signature_key_id:
+          type: string
+    DeployResponse:
+      type: object
+      required: [deployment_id, status]
+      properties:
+        deployment_id:
+          type: string
+        status:
+          type: string
+          enum: [requested, accepted, rejected, expired]
+        downstream_response:
+          type: object
+          additionalProperties: true
+        accepted_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [code, status, reason]
+      properties:
+        code:
+          type: string
+        status:
+          type: integer
+        reason:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

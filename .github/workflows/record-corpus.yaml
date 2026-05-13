@@ -1,0 +1,68 @@
+name: Record SLM corpus (workflow_dispatch — ADR-0004)
+
+# T122 — corpus-recording job. Records new (input, output) fingerprint pairs
+# against the real SLM and opens a PR that adds them to
+# tests/fixtures/policy_corpus/<fingerprint>/. Per ADR-0004 the corpus is the
+# substrate the deterministic-fingerprint stub (FingerprintStubClient) uses
+# for PR-tier load and integration runs.
+#
+# Triggered manually. Each run records one or more fingerprints from a
+# checked-in inputs file at tests/fixtures/policy_corpus_inputs/*.json (so
+# the inputs themselves are reviewable). The job runs the inputs through
+# the real SLM, records the outputs, and writes them into the corpus tree.
+
+on:
+  workflow_dispatch:
+    inputs:
+      inputs_glob:
+        description: "Glob under tests/fixtures/policy_corpus_inputs/ to record"
+        required: true
+        default: "*.json"
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+env:
+  PYTHON_VERSION: "3.11.9"
+  SLM_PROFILE: vllm
+  COLLECTMIND_ENV: ci
+
+jobs:
+  record:
+    name: Record corpus entries
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install -e ".[dev,gpu]"
+      - name: Bring stack up with real SLM
+        run: docker compose -f infra/compose/docker-compose.yaml --profile default up -d
+      - run: until curl -fsS http://localhost:8081/ready >/dev/null 2>&1; do sleep 5; done
+      - run: until curl -fsS http://localhost:8000/v1/models >/dev/null 2>&1; do sleep 5; done
+      - name: Record fingerprints
+        env:
+          INPUTS_GLOB: ${{ inputs.inputs_glob }}
+        run: |
+          PYTHONPATH=src python -m collectmind.slm.record_corpus \
+            --inputs "tests/fixtures/policy_corpus_inputs/$INPUTS_GLOB" \
+            --out tests/fixtures/policy_corpus
+      - name: Create PR for new corpus entries
+        uses: peter-evans/create-pull-request@v7
+        with:
+          title: "test(corpus): record fingerprints from ${{ inputs.inputs_glob }}"
+          commit-message: "test(corpus): record fingerprints from ${{ inputs.inputs_glob }}"
+          branch: corpus/record-${{ github.run_id }}
+          add-paths: tests/fixtures/policy_corpus/
+          body: |
+            Auto-recorded corpus entries from `tests/fixtures/policy_corpus_inputs/${{ inputs.inputs_glob }}`.
+
+            Per ADR-0004 the corpus is the substrate the deterministic-fingerprint stub
+            uses for PR-tier load and integration runs. Each new fingerprint must be
+            human-reviewed before merge: confirm the input is a realistic finding shape
+            and the output is a schema-valid `CollectionPolicySpec` that matches the
+            hypothesis.

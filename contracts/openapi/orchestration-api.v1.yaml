@@ -1,0 +1,208 @@
+openapi: 3.1.0
+info:
+  title: CollectMind Orchestration API
+  version: 1.0.0
+  description: |
+    Inbound API for diagnostic findings. Authenticated with OAuth2 client-credentials JWT.
+    Every endpoint except /health and /ready requires a valid JWT bearer token whose tenant_id claim is non-empty.
+  license:
+    name: Apache-2.0
+servers:
+  - url: https://collectmind.local/api/v1
+    description: Local Compose stack
+  - url: https://api.collectmind.example.com/v1
+    description: Cloud (deployed)
+security:
+  - bearerAuth: []
+paths:
+  /findings:
+    post:
+      operationId: publishDiagnosticFinding
+      summary: Publish a diagnostic finding for the policy loop
+      description: |
+        Accepts a diagnostic finding and enqueues it for the four-node graph.
+        Idempotent on the composite key (tenant_id, finding_id) per FR-012.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosticFindingEvent'
+      responses:
+        '202':
+          description: Accepted, enqueued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedReceipt'
+        '400':
+          description: Schema validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication failure (missing or invalid token, expired token, missing or empty tenant_id claim)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Idempotent replay (already accepted)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedReceipt'
+        '422':
+          description: Schema_version major unsupported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /erasure-requests:
+    post:
+      operationId: submitErasureRequest
+      summary: Submit a GDPR/CCPA right-to-erasure request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ErasureRequest'
+      responses:
+        '202':
+          description: Accepted; dispatcher will propagate to all stores
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErasureReceipt'
+        '401':
+          description: Authentication failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Liveness probe
+      security: []
+      responses:
+        '200':
+          description: OK
+  /ready:
+    get:
+      operationId: readinessCheck
+      summary: Readiness probe (verifies SLM weights, DB, Redis, Kafka)
+      security: []
+      responses:
+        '200':
+          description: Ready
+        '503':
+          description: Not ready (returns the failing dependency in body)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OAuth2 client-credentials grant; JWT MUST contain non-empty `tenant_id` claim.
+  schemas:
+    DiagnosticFindingEvent:
+      type: object
+      required: [schema_version, finding_id, anomaly_type, hypothesis_class, hypothesis_statement, candidate_signals, vehicle_scope, upstream_confidence]
+      properties:
+        schema_version:
+          type: string
+          pattern: '^1\.\d+\.\d+$'
+          description: Semver. The supported major is 1; unknown additive minor/patch fields are tolerated and ignored.
+        finding_id:
+          type: string
+          minLength: 1
+          maxLength: 256
+        anomaly_type:
+          type: string
+          enum: [brake_wear_early_stage]
+          description: In feature 001 only brake_wear_early_stage is accepted.
+        hypothesis_class:
+          type: string
+          minLength: 1
+        hypothesis_statement:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        candidate_signals:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: VSS v6.0 signal name (validated server-side against config/vss/v6.0/signals.yaml)
+        vehicle_scope:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        upstream_confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+    AcceptedReceipt:
+      type: object
+      required: [tenant_id, finding_id, correlation_id, accepted_at]
+      properties:
+        tenant_id:
+          type: string
+        finding_id:
+          type: string
+        correlation_id:
+          type: string
+        accepted_at:
+          type: string
+          format: date-time
+        idempotent_replay:
+          type: boolean
+          default: false
+    ErasureRequest:
+      type: object
+      required: [subject_kind, subject_identifier]
+      properties:
+        subject_kind:
+          type: string
+          enum: [vehicle, finding, principal]
+        subject_identifier:
+          type: string
+          minLength: 1
+        mode:
+          type: string
+          enum: [erased, redacted]
+          default: erased
+    ErasureReceipt:
+      type: object
+      required: [request_id, target_completion_at]
+      properties:
+        request_id:
+          type: string
+        target_completion_at:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [code, status, reason]
+      properties:
+        code:
+          type: string
+          description: Stable error code (e.g., AUTH_INVALID_TOKEN, AUTH_EXPIRED, AUTH_TENANT_MISSING, SCHEMA_VALIDATION_FAILED, SCHEMA_VERSION_UNSUPPORTED, VSS_INVALID_SIGNAL, RATE_LIMITED, NOT_FOUND).
+        status:
+          type: integer
+          description: HTTP-equivalent status code.
+        reason:
+          type: string
+          description: Human-readable reason.
+        details:
+          type: object
+          additionalProperties: true
+          description: Optional details object. Authentication failures MUST NOT echo the inbound payload or any token claim other than the rejection code.

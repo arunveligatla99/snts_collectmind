@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+coverage.xml
+
+# Hypothesis property-test database (local cache, not source)
+.hypothesis/
+
+# Spec-kit local extensions / per-machine workflow config (not source)
+.specify/extensions/
+.specify/workflows/
+.specify/feature.json
+.specify/init-options.json
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment
+.env
+.env.local
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+reports/
+*.log
+
+# Model weights (downloaded by build)
+models/weights/
+models/gguf/
+
+# Compose runtime data
+.compose-data/
+.docker-volumes/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Spec-kit agent skills (already tracked; ignore credential subdirs)
+.claude/projects/

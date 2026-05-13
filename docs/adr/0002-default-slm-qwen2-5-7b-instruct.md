@@ -1,6 +1,7 @@
 # ADR-0002: Default Small Language Model — Qwen2.5-7B-Instruct
 
 - Status: Proposed. Promotes to Accepted when the eval-suite baseline below is filled by the follow-up commit `docs: ADR-0002 record eval baseline`.
+- Gating note (T137, 2026-05-11): the closing session for feature 001 ran on a workstation without GPU access; `nvidia-smi` is not on PATH and the workflow_dispatch path that runs the real-SLM eval suite (`.github/workflows/ci-workflow-dispatch.yaml`, T120 — job `eval-suite`) requires a `[self-hosted, gpu]` runner. Per the instruction for Phase 6, no baseline numbers are fabricated; the bracketed rows below remain empty until the eval suite runs on a GPU runner. The promotion to Accepted lands in a follow-up commit at that point.
 - Date: 2026-05-09
 - Deciders: Arun Veligatla (project author)
 - Constitutional principle: XIII (SLM-First, Isolated, Swappable Model Boundary), with downstream consequences for XIV (Deterministic, Budgeted Model Execution in CI), IX (Security, supply-chain), and XVII (Audit)

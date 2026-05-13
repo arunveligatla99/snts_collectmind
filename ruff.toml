@@ -1,0 +1,70 @@
+target-version = "py311"
+line-length = 120
+extend-exclude = [
+  "specs/",
+  ".specify/",
+  "models/",
+  "tests/fixtures/policy_corpus/",
+]
+
+[lint]
+select = [
+  "E", "F", "W",       # pycodestyle + pyflakes
+  "I",                  # isort
+  "B",                  # flake8-bugbear
+  "UP",                 # pyupgrade
+  "ASYNC",              # async best practices
+  "S",                  # bandit-lite
+  "RUF",                # ruff-specific
+  "PL",                 # pylint subset
+  "SIM",                # flake8-simplify
+  "ERA",                # eradicate (no commented-out code)
+]
+ignore = [
+  "S101",  # asserts allowed in tests
+  "PLR0913", # too many arguments — DI pattern means many fastapi Depends params
+  "B008",   # FastAPI's `Depends(...)` is idiomatically called as default value
+  "PLR2004", # magic-value: many constants in tests + thresholds in app code
+  "PLR0915", # too-many-statements; app composition is intentionally large
+  "B904",   # raise-from inside except: pattern used throughout error handlers
+  "B007",   # unused-loop-var: tolerated for tuple-unpack in walk helpers
+  "RUF015", # prefer-next-iter: stylistic
+  "SIM103", # collapse-condition: stylistic
+  "SIM105", # contextlib.suppress: shutdown try-except-pass intentional
+  "SIM118", # in-dict.keys: stylistic
+  "PLW2901", # for-loop-var-overwritten: pattern reused in normalizers
+  "ERA001", # commented-out-code: false positives on prompt examples + SQL hints
+]
+
+[lint.per-file-ignores]
+# Tests: allow security-style + magic-value rules; PLC0415 for fixture-local
+# imports; B017 (blind exception) where the test verifies the broad catch.
+"tests/**" = ["S", "PLR2004", "PLC0415", "B017", "B018", "E501"]
+# Simulators and stub modules use non-cryptographic randomness deliberately.
+"src/collectmind/simulators/**" = ["S311"]
+"src/collectmind/deployer/simulator.py" = ["S311"]
+# Scripts: subprocess + url-open are intentional surface (gitleaks wrapper,
+# corpus downloaders, dump helpers).
+"scripts/**" = ["S310", "S603", "S110", "SIM103", "S104"]
+# OTel init uses module-level globals + a small late import; intentional.
+"src/collectmind/observability/otel.py" = ["PLW0603", "PLC0415"]
+# Erasure dispatcher and graph runner background tasks are intentionally
+# fire-and-forget (Principle XII bounded retry + dead-letter routing).
+"src/collectmind/erasure/dispatcher.py" = ["RUF006"]
+"src/collectmind/ingest/http.py" = ["RUF006"]
+"src/collectmind/observability/dashboard_provisioner.py" = ["PLC0415"]
+# Test-style fixtures: provisioner + metrics test imports inside callable scope.
+"src/collectmind/auth/dependencies.py" = ["PLC0415"]
+"src/collectmind/app.py" = ["PLC0415", "S110"]
+"src/collectmind/graph/policy_generator.py" = ["PLC0415"]
+"src/collectmind/slm/dev_default_client.py" = ["PLC0415"]
+"src/collectmind/openapi/dump.py" = ["PLC0415"]
+# Long SQL strings / docstrings in registry + query layers.
+"src/collectmind/registry/audit.py" = ["E501"]
+"src/collectmind/registry/repository.py" = ["E501"]
+"src/collectmind/query/api.py" = ["E501"]
+"scripts/fetch_qwen2.5_weights.py" = ["PLC0415"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

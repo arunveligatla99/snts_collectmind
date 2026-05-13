@@ -1,0 +1,30 @@
+# Qwen/Qwen2.5-7B-Instruct
+# Revision: a09a35458c702b33eeacc393d103063234e8bc28
+# License: Apache-2.0
+#
+# Format: <sha256>  <relative_path>
+#
+# The hashes below are placeholders pinned in feature-001 scaffolding. They are
+# replaced with real SHA-256 values by the recording job in Phase 3 US1 (T022) when
+# the weights are actually downloaded. The CI guard (scripts/check_slm_pinning.py,
+# T126) refuses to start the SLM container until every artifact's actual SHA matches.
+#
+# Real artifact list (from the Hugging Face snapshot at the pinned revision):
+#   model-00001-of-00004.safetensors
+#   model-00002-of-00004.safetensors
+#   model-00003-of-00004.safetensors
+#   model-00004-of-00004.safetensors
+#   model.safetensors.index.json
+#   config.json
+#   generation_config.json
+#   tokenizer.json
+#   tokenizer_config.json
+#   vocab.json
+#   merges.txt
+#
+# CPU-fallback profile additionally records:
+#   qwen2.5-7b-instruct-q4_k_m.gguf
+#
+# Until the recording job runs, these entries are intentionally absent. The build
+# fails closed: scripts/verify_slm_manifest.py treats an empty manifest as a manifest
+# error, not a successful no-op.

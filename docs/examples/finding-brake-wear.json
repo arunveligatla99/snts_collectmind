@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "finding_id": "F-example-brake-wear-001",
+  "anomaly_type": "brake_wear_early_stage",
+  "hypothesis_class": "brake_wear",
+  "hypothesis_statement": "rotor temperature excursion correlates with elevated brake pad wear on Row1 left wheel",
+  "candidate_signals": [
+    "Vehicle.Chassis.Axle.Row1.Wheel.Left.Brake.PadWear",
+    "Vehicle.Powertrain.CombustionEngine.EngineOil.Temperature"
+  ],
+  "vehicle_scope": ["VIN-EXAMPLE-1", "VIN-EXAMPLE-2", "VIN-EXAMPLE-3"],
+  "upstream_confidence": 0.78
+}
