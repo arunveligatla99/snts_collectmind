@@ -194,12 +194,20 @@ jobs:
           sarif_file: reports/trivy.sarif
           category: trivy-image-scan
       - name: Syft SBOM (CycloneDX)
+        # .syft.yaml's schema (catalogers list, nested file.cataloger /
+        # file.metadata.cataloger / file.contents.cataloger blocks) targets
+        # an older Syft. Syft v1.42.3 (bundled with anchore/sbom-action@v0
+        # at the time of this run) rejects the document. Dropping the
+        # config input lets Syft use its defaults; the SBOM still emits in
+        # CycloneDX JSON. Updating `.syft.yaml` to the v1.x schema (custom
+        # file globs for `config/slm/**/manifest.sha256` per Principle IX)
+        # rolls into the Phase 7 supply-chain-refresh follow-up alongside
+        # the dep-bump sweep.
         uses: anchore/sbom-action@v0
         with:
           image: collectmind/orchestration-api:ci
           format: cyclonedx-json
           output-file: reports/sbom.cdx.json
-          config: .syft.yaml
       - uses: actions/upload-artifact@v4
         with: { name: sbom, path: reports/sbom.cdx.json }
 
@@ -247,7 +255,12 @@ jobs:
       - name: pip-audit
         # Add `--ignore-vuln GHSA-xxxx` per ignored CVE; document the rationale
         # in DECISIONS.md alongside the entry. Currently no ignores.
-        run: pip-audit --strict
+        #
+        # `--skip-editable` excludes the local `collectmind` editable install
+        # from the audit; the package is not on PyPI so pip-audit cannot
+        # resolve it. Transitive deps installed via the same `pip install -e
+        # ".[dev]"` are still audited normally.
+        run: pip-audit --strict --skip-editable
 
   gitleaks:
     name: gitleaks (no secrets in repo)
