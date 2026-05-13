@@ -152,7 +152,11 @@ jobs:
           tags: collectmind/orchestration-api:ci
           load: true
       - name: Trivy scan (fail on critical/high)
-        uses: aquasecurity/trivy-action@v0.28.0
+        # v0.28.0 + v0.29.0 transitively reference setup-trivy tags
+        # (v0.2.1, v0.2.2) that no longer exist on the setup-trivy repo;
+        # only setup-trivy v0.2.6 is still tagged. v0.36.0 is hash-pinned
+        # to v0.2.6, so it is the only version that currently resolves.
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: collectmind/orchestration-api:ci
           severity: CRITICAL,HIGH
@@ -181,10 +185,17 @@ jobs:
       - name: bandit
         run: bandit -r src/collectmind -q
       # semgrep is a CLI tool; its opentelemetry-api~=1.25.0 pin conflicts
-      # with collectmind's opentelemetry-api==1.29.0. Install via pipx so its
-      # deps live in an isolated venv and do not pollute the project resolver.
+      # with collectmind's opentelemetry-api==1.29.0. Install via pipx so
+      # its deps live in an isolated venv and do not pollute the project
+      # resolver. The pipx venv defaults to the runner's system Python
+      # (3.12 on ubuntu-latest), which no longer bundles setuptools — and
+      # semgrep's transitive opentelemetry-instrumentation imports
+      # pkg_resources at startup. Inject setuptools into the venv so
+      # pkg_resources is importable.
       - name: semgrep install (pipx isolation)
-        run: pipx install semgrep==1.99.0
+        run: |
+          pipx install semgrep==1.99.0
+          pipx inject semgrep setuptools
       - name: semgrep
         run: semgrep --config p/python --config p/security-audit --error src/collectmind
       - name: pip-audit

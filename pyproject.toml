@@ -50,6 +50,7 @@ dev = [
   "bandit==1.8.0",
   "pip-audit==2.7.3",
   "types-PyYAML==6.0.12.20241230",
+  "respx==0.22.0",
 ]
 
 [build-system]
