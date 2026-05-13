@@ -187,15 +187,19 @@ jobs:
       # semgrep is a CLI tool; its opentelemetry-api~=1.25.0 pin conflicts
       # with collectmind's opentelemetry-api==1.29.0. Install via pipx so
       # its deps live in an isolated venv and do not pollute the project
-      # resolver. The pipx venv defaults to the runner's system Python
-      # (3.12 on ubuntu-latest), which no longer bundles setuptools — and
-      # semgrep's transitive opentelemetry-instrumentation imports
-      # pkg_resources at startup. Inject setuptools into the venv so
-      # pkg_resources is importable.
+      # resolver. Two transitive pitfalls under semgrep 1.99.0:
+      #   - pipx defaults to the runner's system Python (3.12 on
+      #     ubuntu-latest), which no longer bundles setuptools.
+      #   - setuptools >= 80 split off `pkg_resources`, but semgrep's
+      #     pinned opentelemetry-instrumentation still does
+      #     `from pkg_resources import ...` at import time.
+      # Inject setuptools < 80 so pkg_resources is importable. Verify the
+      # install with `pipx list` for diagnostics.
       - name: semgrep install (pipx isolation)
         run: |
           pipx install semgrep==1.99.0
-          pipx inject semgrep setuptools
+          pipx inject semgrep "setuptools<80"
+          pipx list
       - name: semgrep
         run: semgrep --config p/python --config p/security-audit --error src/collectmind
       - name: pip-audit
