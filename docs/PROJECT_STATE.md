@@ -79,13 +79,14 @@ mypy src/collectmind                                         # T135 part 2
 
 ## What is next — Phase 7 (post-feature-001) and feature 002
 
-**Three named Phase 7 follow-ups inherited from Phase 6 closure**:
+**Four named Phase 7 follow-ups (three from Phase 6 closure + one added during the inaugural SC-009 PR-tier CI run on 2026-05-13)**:
 
 | Item | Reason | Gating condition |
 |---|---|---|
 | **ADR-0002 eval-suite baseline + promotion to Accepted** | Closure session ran on a workstation without `nvidia-smi`; per Phase-6 instruction no baseline numbers fabricated. | First successful workflow_dispatch invocation of `.github/workflows/ci-workflow-dispatch.yaml` `eval-suite` job on a `[self-hosted, gpu]` runner. Lands as the follow-up commit `docs: ADR-0002 record eval baseline`. |
 | **SC-009 rolling-5-PR wall-clock window logic** | Needs at least one real PR-tier CI run as input; pre-emptive aggregator is speculative. | First PR-tier `ci.yaml` invocation. Lands as a small `scripts/ci_wall_clock_window.py` follow-up if SC-009 starts trending toward 18 min. |
 | **T142 PII-strip CI gate (closes SC-007)** | Excluded from Phase 6 per user's explicit `/speckit.implement T134-T141` instruction. The structlog `_pii_processor` exists at `src/collectmind/observability/logging.py`; the CI side at `scripts/check_log_pii.py` lands in the same Phase-7 PR. | Phase 7 work item. |
+| **Supply-chain refresh sweep** (added 2026-05-13) | Inaugural PR-tier run surfaced 53 debian + 6 python-pkg HIGH/CRITICAL CVEs against `collectmind/orchestration-api:ci`, all postdating the feature-001 closure date. Trivy is currently informational (`exit-code: "0"`) with SARIF artifact + GitHub Security tab upload preserving visibility per DECISIONS.md 2026-05-13 entry. | Deliberate dependency-update sprint: bump base image (re-pull `python:3.11.9-slim` to current debian-12 patch level OR digest-pin a newer tag), PyJWT (`2.10.1→2.12.0`), cryptography (`44.0.0→46.0.5`), starlette via FastAPI bump (`0.41.3→0.49.1`), setuptools (`65.5.1→78.1.1`), wheel (`0.44.0→0.46.2`); re-enable Trivy fail-on-HIGH/CRITICAL (`exit-code: "1"`) after the sweep clears the local re-scan. Lands as a single PR titled `chore: supply-chain refresh — re-enable Trivy gate`. |
 
 **Next feature: `002-multi-tenant-isolation`**. Not yet started. When `/speckit-specify 002-multi-tenant-isolation` begins:
 

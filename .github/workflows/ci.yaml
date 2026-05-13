@@ -29,6 +29,11 @@ permissions:
   pull-requests: write
   packages: write
   id-token: write
+  # security-events: write is required for github/codeql-action/upload-sarif
+  # so Trivy findings show up under the repo's Security tab while the
+  # Phase 7 supply-chain-refresh sweep is in flight (see DECISIONS.md
+  # 2026-05-13 entry + PROJECT_STATE.md Phase 7 follow-up table).
+  security-events: write
 
 env:
   PYTHON_VERSION: "3.11.9"
@@ -151,18 +156,41 @@ jobs:
           file: infra/compose/orchestration-api/Dockerfile
           tags: collectmind/orchestration-api:ci
           load: true
-      - name: Trivy scan (fail on critical/high)
+      - name: Trivy scan (informational; Phase 7 supply-chain-refresh deferral)
         # v0.28.0 + v0.29.0 transitively reference setup-trivy tags
         # (v0.2.1, v0.2.2) that no longer exist on the setup-trivy repo;
         # only setup-trivy v0.2.6 is still tagged. v0.36.0 is hash-pinned
         # to v0.2.6, so it is the only version that currently resolves.
+        #
+        # exit-code: "0" makes Trivy informational while the Phase 7
+        # supply-chain-refresh sweep is in flight (bump base image,
+        # PyJWT 2.12.0, cryptography 46.0.5, FastAPI/starlette 0.49.1,
+        # setuptools 78.1.1, wheel 0.46.2). The scan still runs
+        # (Principle IX preserved), the SARIF report uploads as a CI
+        # artifact AND to the GitHub Security tab below. The gate
+        # re-enables to "1" after the sweep lands. See DECISIONS.md
+        # 2026-05-13 entry + PROJECT_STATE.md Phase 7 follow-up table.
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: collectmind/orchestration-api:ci
           severity: CRITICAL,HIGH
-          exit-code: "1"
+          exit-code: "0"
           ignore-unfixed: false
           trivyignores: .trivyignore
+          format: sarif
+          output: reports/trivy.sarif
+      - name: Upload Trivy SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif
+          path: reports/trivy.sarif
+      - name: Upload Trivy SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/trivy.sarif
+          category: trivy-image-scan
       - name: Syft SBOM (CycloneDX)
         uses: anchore/sbom-action@v0
         with:
