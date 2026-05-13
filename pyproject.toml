@@ -66,6 +66,7 @@ testpaths = ["tests"]
 addopts = "--strict-markers --strict-config --cov=src/collectmind --cov-report=term --cov-report=xml --cov-fail-under=85"
 markers = [
   "integration: end-to-end tests that hit the real local stack",
+  "contract: contract-tier tests (schemathesis fuzz + endpoint shape) — feature 002 onward",
 ]
 
 [tool.coverage.run]

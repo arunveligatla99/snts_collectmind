@@ -1,11 +1,20 @@
 openapi: 3.1.0
 info:
   title: CollectMind Operator Query API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Read-only operator interface over the registry, deployments, outcomes, and audit events.
     Authenticated with OAuth2 client-credentials JWT; tenant_id claim scopes every query.
     Read p95 SLO under 200 ms at 100 reads/s (per Spec SC-004).
+
+    v1.1.0 (feature 002): cross-tenant access on any path returns 404 (not 403/422) to
+    avoid an existence oracle (FR-006). Every endpoint picks up a 429 + Retry-After response
+    when the per-tenant rate limit is exceeded (FR-010, FR-011). New endpoint
+    ``GET /tenant-config/self`` returns the requesting tenant's effective rate-limit
+    configuration. Audit-event ``kind`` enum widened with ``deployment_rejected``
+    (operator-AND-tenant readable when joined to a tenant-owned finding); the other three
+    feature-002 audit kinds (``break_glass``, ``tenant_config_change``,
+    ``vehicle_assignment_change``) are operator-only and live on ``audit-admin.v1.yaml``.
   license:
     name: Apache-2.0
 servers:

@@ -1,0 +1,35 @@
+# Orphan-runbook whitelist (feature 002 Phase 13 T283).
+#
+# Runbook pages that legitimately have NO Prometheus alert pointing at them.
+# These are operational-reference docs: known failure modes documented for the
+# on-call without a metric-driven alert.
+#
+# The CI guard at `scripts/check_runbook_completeness.py` reads this file at
+# runtime and skips the listed basenames during the bidirectional orphan check.
+#
+# To add a runbook here: ensure it is genuinely operator-facing reference material
+# (not "we'll add an alert later"). To remove a runbook from the list: add the
+# corresponding alert in `observability/prometheus/rules.yaml` and confirm
+# `tests/unit/test_alert_runbook_parity.py` still passes.
+#
+# Per Phase 13 review decision (recorded in `docs/DECISIONS.md`).
+
+whitelist:
+  # Index / navigation pages.
+  - INDEX.md
+
+  # SLM operational reference (no Prometheus alert; container health drives operator action).
+  - slm-container-oom.md
+  - slm-weight-digest-mismatch.md
+  - vllm-healthcheck-failure.md
+  - cpu-fallback-activation.md
+  - gpu-node-group-capacity-exhausted.md
+
+  # Infrastructure operational reference (no Prometheus alert; symptom-driven).
+  - kafka-lag.md
+  - postgres-pool-exhausted.md
+  - redis-evictions.md
+  - dead-letter-non-empty.md
+  - container-oom.md
+  - oauth2-issuer-unavailable.md
+  - docker-desktop-daemon-down.md

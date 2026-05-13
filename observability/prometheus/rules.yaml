@@ -158,3 +158,102 @@ groups:
           summary: "SC-012 breach: orchestration-api availability < 99.9%"
           description: "Rolling 10-minute availability of the orchestration-api scrape target dropped below the SC-012 99.9% monthly target."
           runbook_url: observability/runbooks/slo-012-availability.md
+
+  # Feature 002 Phase 13 T280: tenant-isolation observability surface.
+  # Six alerts mirroring the binding contracts from Phases 9-12. Severity-tier
+  # discipline per the feature-001 Phase 5 standardization:
+  #   - page: pre-breach indicator / single-event-visible signal.
+  #   - critical: SLO breach / burst pattern requiring immediate page.
+  - name: collectmind-multi-tenant
+    interval: 15s
+    rules:
+
+      # FR-016: paged when a tenant sustains rate-limit rejections > 10/s for 10 min.
+      - alert: RatelimitSustainedThrottle
+        expr: sum by (tenant_id) (rate(collectmind_ratelimit_throttled_total[5m])) > 10
+        for: 10m
+        labels:
+          severity: page
+          slo: FR-016
+          service: collectmind
+        annotations:
+          summary: "FR-016: tenant sustained rate-limit throttle > 10 r/s for 10 min"
+          description: "Tenant {{ $labels.tenant_id }} has sustained over 10 throttled requests per second for 10 minutes. Likely a noisy-neighbor incident (US2)."
+          runbook_url: observability/runbooks/ratelimit-sustained-throttle.md
+
+      # ADR-0008 Part 3: failure-CLOSED page when Redis-unavailable counter is non-zero
+      # for 5 min. Distinct from RatelimitSustainedThrottle: this means the limiter is
+      # broken, not the limiter is doing its job.
+      - alert: RatelimitRedisUnavailable
+        expr: sum(rate(collectmind_ratelimit_redis_unavailable_total[1m])) > 0
+        for: 5m
+        labels:
+          severity: page
+          slo: ADR-0008-Part-3
+          service: collectmind
+        annotations:
+          summary: "ADR-0008 Part 3: rate-limiter Redis unavailable (failure-CLOSED engaged)"
+          description: "The rate-limit middleware's Redis backend is unavailable; the failure-CLOSED 503 path has been engaged for 5+ minutes. The limiter is broken, not throttling."
+          runbook_url: observability/runbooks/ratelimit-redis-unavailable.md
+
+      # SC-013 single-invocation page: fires on any break-glass operator invocation so
+      # ops sees every cross-tenant audit read within one scrape interval.
+      # Preserves operator_subject + reason_code on the alert instance so
+      # Alertmanager's group_by routes per-(operator, reason) tuple — single-event
+      # visibility per Phase 13 review (recorded in docs/DECISIONS.md).
+      - alert: BreakGlassInvoked
+        expr: sum by (operator_subject, reason_code) (increase(collectmind_break_glass_invocation_total[1m])) > 0
+        for: 0m
+        labels:
+          severity: page
+          slo: SC-013
+          service: collectmind
+        annotations:
+          summary: "SC-013: break-glass operator bypass invoked"
+          description: "Operator {{ $labels.operator_subject }} invoked the FR-005a break-glass primitive with reason_code={{ $labels.reason_code }}. Audit row written; review the audit_events kind=break_glass entry for the target tenant and correlation_id."
+          runbook_url: observability/runbooks/break-glass-invoked.md
+
+      # SC-013 burst critical: fires when an operator's 5-min invocation rate exceeds
+      # 0.05/sec (~ 15 invocations in 5 min). Distinct page volume from the single-
+      # invocation alert: BreakGlassInvoked sees every event; this alert sees abuse
+      # patterns AT a single operator subject.
+      - alert: BreakGlassBurstInvocation
+        expr: sum by (operator_subject) (rate(collectmind_break_glass_invocation_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          slo: SC-013
+          service: collectmind
+        annotations:
+          summary: "SC-013 burst: break-glass invocations > 15 per 5 min from one operator"
+          description: "Operator {{ $labels.operator_subject }} sustained > 0.05 break-glass invocations per second over 5 minutes. Possible operator-key compromise; rotate credentials and review audit_events for affected tenants."
+          runbook_url: observability/runbooks/break-glass-burst-invocation.md
+
+      # SC-014: tenant_config LISTEN/NOTIFY consumer lag exceeded 5 s for 2 min. The
+      # cache reflects stale tenant overrides; rate-limit decisions may use outdated
+      # ceilings.
+      - alert: TenantConfigReloadStalled
+        expr: max(collectmind_tenant_config_cache_consumer_lag_seconds) > 5
+        for: 2m
+        labels:
+          severity: page
+          slo: SC-014
+          service: collectmind
+        annotations:
+          summary: "SC-014: tenant_config LISTEN/NOTIFY consumer lag > 5 s"
+          description: "The orchestration-api's tenant_config cache has not consumed a NOTIFY event within 5 seconds for 2 minutes. Rate-limit ceilings may be stale."
+          runbook_url: observability/runbooks/tenant-config-reload-stalled.md
+
+      # SC-012 page-tier: fires on any deployment-tenant mismatch sustained for 1 min.
+      # Single-event visibility per FR-024.
+      - alert: DeploymentTenantMismatch
+        expr: sum(increase(collectmind_deployment_rejected_total[1m])) > 0
+        for: 1m
+        labels:
+          severity: page
+          slo: SC-012
+          service: collectmind
+        annotations:
+          summary: "SC-012: deployer refused a tenant-vehicle mismatched policy"
+          description: "The deployer-node tenant-scope check (FR-021) raised TenantVehicleMismatch; the policy was NOT deployed. Audit row kind=deployment_rejected written. Investigate operator workflow or ownership-store integrity."
+          runbook_url: observability/runbooks/deployment-tenant-mismatch.md

@@ -19,7 +19,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from collectmind.auth.dependencies import get_settings
+from collectmind.audit_admin.api import router as audit_admin_router
+from collectmind.auth.dependencies import get_settings, get_verifier
 from collectmind.config import Settings
 from collectmind.deployer.signing import LocalKeySigner
 from collectmind.deployer.simulator import SimulatorCollectorAIClient
@@ -45,14 +46,19 @@ from collectmind.observability.metrics import (
 )
 from collectmind.observability.otel import init_otel
 from collectmind.query.api import router as query_router
+from collectmind.ratelimit.config_cache import TenantConfigCacheConsumer
+from collectmind.ratelimit.middleware import RateLimitMiddleware
 from collectmind.redis.client import HotStore
 from collectmind.registry.audit import AuditEventWriter
 from collectmind.registry.db import Database
+from collectmind.registry.migrations.runner import apply_pending
 from collectmind.registry.repository import (
     DeploymentRepository,
     OutcomeRepository,
     PolicyRepository,
 )
+from collectmind.registry.tenant_config import TenantConfigRepository
+from collectmind.registry.tenant_vehicles import TenantVehiclesRepository
 from collectmind.simulators.telemetry_generator import TelemetryGenerator
 from collectmind.slm.client import PolicyGeneratorClient
 from collectmind.slm.stub_client import FingerprintStubClient
@@ -111,6 +117,15 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     db = Database(settings.postgres_dsn)
     redis = HotStore(settings.redis_url)
     kafka = Producer(settings.kafka_bootstrap_servers)
+
+    # Feature 002 T233: opt-in migration runner on startup. Default OFF so the existing
+    # docker-entrypoint-initdb.d path (fresh-volume init) keeps working. Set
+    # ``MIGRATIONS_AUTO_APPLY=true`` to apply pending migrations on every container start.
+    if os.environ.get("MIGRATIONS_AUTO_APPLY", "false").lower() == "true":
+        applied = await apply_pending(settings.postgres_dsn)
+        if applied:
+            logger.info("migrations_applied_at_startup", versions=applied)
+
     await db.connect()
     await redis.connect()
     await kafka.start()
@@ -120,6 +135,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     outcome_repo = OutcomeRepository(db)
     audit_writer = AuditEventWriter(db)
     erasure_dispatcher = ErasureDispatcher(db, audit_writer)
+    tenant_config_repo = TenantConfigRepository(db)
+    tenant_vehicles_repo = TenantVehiclesRepository(db)
+
+    # T256: Postgres LISTEN tenant_config_changed consumer for cache invalidation.
+    tenant_config_consumer = TenantConfigCacheConsumer(settings.postgres_dsn, tenant_config_repo)
+    await tenant_config_consumer.start()
 
     signing_key_path = Path(os.environ.get("SIGNING_KEY_PATH", "./models/dev-signing.key"))
     signer = LocalKeySigner.from_path(signing_key_path, key_id="dev-key-1")
@@ -165,6 +186,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.signing_key_id = signer.key_id
     app.state.idempotency = IdempotencyChecker.from_db(db)
     app.state.schema_checker = SchemaVersionChecker(supported_major=1)
+    app.state.tenant_config_repo = tenant_config_repo
+    app.state.tenant_vehicles_repo = tenant_vehicles_repo
+    app.state.tenant_config_consumer = tenant_config_consumer
 
     feedback_task = asyncio.create_task(feedback.run_forever())
 
@@ -184,6 +208,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             await feedback_task
         except (asyncio.CancelledError, Exception):
             pass
+        await tenant_config_consumer.stop()
         await kafka.stop()
         await redis.close()
         await db.close()
@@ -247,10 +272,53 @@ class _MetricsMiddleware(BaseHTTPMiddleware):
 
 
 app = FastAPI(title="CollectMind Orchestration API", version="0.1.0", lifespan=_lifespan)
+
+
+# T259: middleware ordering. Starlette/FastAPI runs middlewares in REVERSE-add order on the
+# request path: the LAST .add_middleware() wraps the OUTERMOST. We want metrics on every
+# request (innermost — runs after rate-limit decisions), and rate-limit on every authenticated
+# tenant request. Add order:
+#   1. _MetricsMiddleware (innermost; counts every request including 429/503)
+#   2. RateLimitMiddleware (outer; runs JWT verification + token-bucket; short-circuits on
+#      auth failure with 401 before the limiter is touched per FR-017)
+# Inbound dispatch order: RateLimit → _Metrics → route handler.
 app.add_middleware(_MetricsMiddleware)
+
+
+@app.middleware("http")
+async def _ratelimit_dispatch(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    """Wires the rate-limit middleware against the live app state. Wrapped as an
+    `@app.middleware` (not `add_middleware`) because the dependencies are
+    constructed in the lifespan handler; this lets us defer their lookup until the
+    first request, by which time `_lifespan` has populated `app.state`.
+    """
+    state = request.app.state
+    if getattr(state, "ratelimit_disabled", False):
+        # Test fixtures (TestClient without lifespan) set this flag so the middleware
+        # short-circuits without trying to construct a real verifier or Redis client.
+        return await call_next(request)
+    middleware_obj: RateLimitMiddleware | None = getattr(state, "_ratelimit_middleware", None)
+    if middleware_obj is None:
+        if not hasattr(state, "redis") or not hasattr(state, "tenant_config_repo"):
+            return await call_next(request)
+        verifier = get_verifier()
+        middleware_obj = RateLimitMiddleware(
+            app=request.app,
+            verifier=verifier,
+            hot_store=state.redis,
+            tenant_config_repo=state.tenant_config_repo,
+        )
+        state._ratelimit_middleware = middleware_obj
+    return await middleware_obj.dispatch(request, call_next)
+
+
 app.include_router(ingest_router)
 app.include_router(query_router)
 app.include_router(erasure_router)
+# T238: break-glass router mounted as a DISTINCT router with its own operator-principal
+# dependency at the router boundary (ADR-0007 Part 5). FastAPI cannot route a request to
+# any handler inside this router unless the operator JWT audience claim is verified first.
+app.include_router(audit_admin_router)
 
 
 @app.exception_handler(CollectMindError)

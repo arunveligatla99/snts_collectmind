@@ -12,24 +12,38 @@ _SUFFIXES: tuple[str, ...] = ("", "_total", "_created", "_bucket", "_sum", "_cou
 
 
 def declared_metric_names() -> set[str]:
-    """Return every Prometheus series name declared by ``metrics.py``.
+    """Return every Prometheus series name declared across CollectMind's metric modules.
 
     `prometheus_client.Counter` strips the user-supplied ``_total`` suffix
     from the instance's ``_name`` attribute but exposes the series with the
     suffix. Histograms expose ``_bucket``, ``_sum``, and ``_count`` derived
     series. The declared set must include every derived suffix so a
     bidirectional dashboard-to-metrics check produces no false negatives.
+
+    Phase 13 T281 extends the scan to the rate-limit metrics module so panels can
+    reference ``collectmind_ratelimit_decision_total`` without the bidirectional
+    check flagging it as undeclared. Adding a new metrics module: append it below.
     """
-    from collectmind.observability import metrics
+    import importlib
+
+    module_paths = (
+        "collectmind.observability.metrics",
+        "collectmind.ratelimit.metrics",
+    )
 
     names: set[str] = set()
-    for attr_name in dir(metrics):
-        attr = getattr(metrics, attr_name)
-        prom_name = getattr(attr, "_name", None)
-        if not isinstance(prom_name, str) or not prom_name.startswith("collectmind_"):
+    for module_path in module_paths:
+        try:
+            module = importlib.import_module(module_path)
+        except ImportError:
             continue
-        for suffix in _SUFFIXES:
-            names.add(f"{prom_name}{suffix}")
+        for attr_name in dir(module):
+            attr = getattr(module, attr_name)
+            prom_name = getattr(attr, "_name", None)
+            if not isinstance(prom_name, str) or not prom_name.startswith("collectmind_"):
+                continue
+            for suffix in _SUFFIXES:
+                names.add(f"{prom_name}{suffix}")
     return names
 
 

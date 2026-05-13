@@ -77,8 +77,14 @@ def _parse_refresh_to_seconds(raw: object) -> int:
 
 
 def _declared_metric_names() -> set[str]:
-    """Return the set of fully qualified Prometheus metric names declared by
-    `src/collectmind/observability/metrics.py`.
+    """Return the set of fully qualified Prometheus metric names declared across
+    CollectMind's metric modules.
+
+    Feature 002 Phase 13 introduced a second metric module
+    (``collectmind.ratelimit.metrics``) for the rate-limit counters per ADR-0008
+    Part 6. The dashboard test must scan every module that exports
+    ``collectmind_``-prefixed Prometheus primitives, or the bidirectional
+    drift check will false-positive on legitimate cross-module references.
 
     `prometheus_client` strips the `_total` suffix from Counter names at
     registration time (so a Counter declared as ``foo_total`` exposes a series
@@ -86,17 +92,27 @@ def _declared_metric_names() -> set[str]:
     contract robust to all three primitive kinds (Counter / Gauge / Histogram)
     the set includes every derived suffix Prometheus may emit: ``_total``,
     ``_created``, ``_bucket``, ``_sum``, ``_count``."""
-    from collectmind.observability import metrics  # local import to avoid module-load coupling at collection
+    import importlib
+
+    module_paths = (
+        "collectmind.observability.metrics",
+        "collectmind.ratelimit.metrics",
+    )
 
     declared: set[str] = set()
-    for name in dir(metrics):
-        attr = getattr(metrics, name)
-        prom_name = getattr(attr, "_name", None)
-        if not isinstance(prom_name, str) or not prom_name.startswith("collectmind_"):
+    for module_path in module_paths:
+        try:
+            module = importlib.import_module(module_path)
+        except ImportError:
             continue
-        declared.add(prom_name)
-        for suffix in ("_total", "_created", "_bucket", "_sum", "_count"):
-            declared.add(f"{prom_name}{suffix}")
+        for name in dir(module):
+            attr = getattr(module, name)
+            prom_name = getattr(attr, "_name", None)
+            if not isinstance(prom_name, str) or not prom_name.startswith("collectmind_"):
+                continue
+            declared.add(prom_name)
+            for suffix in ("_total", "_created", "_bucket", "_sum", "_count"):
+                declared.add(f"{prom_name}{suffix}")
     return declared
 
 

@@ -12,7 +12,12 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/home/postgres/pgdata/data
-      - ../../src/collectmind/registry/migrations/sql:/docker-entrypoint-initdb.d:ro
+      # Migrations live at /migrations as a read-only source. The init
+      # wrapper script under postgres-init/ filters out .down.sql files so
+      # the docker-entrypoint-initdb.d run order is correct on fresh
+      # volumes. See postgres-init/00_run_up_migrations.sh for rationale.
+      - ../../src/collectmind/registry/migrations/sql:/migrations:ro
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U collectmind -d collectmind"]
       interval: 5s
@@ -169,6 +174,25 @@ services:
       - "8088:8088"
     volumes:
       - ./issuer-config.yaml:/app/issuer-config.yaml:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/.well-known/jwks.json')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # Feature 002 / ADR-0007 Part 4: operator-issuer signs JWTs with audience
+  # ``collectmind-operator`` for the break-glass surface. Distinct from the tenant
+  # issuer above. Gated by Compose profile ``operator-issuer``; the foundation smoke
+  # for feature 002's break-glass primitive requires:
+  #   docker compose --profile operator-issuer -f infra/compose/docker-compose.yaml up -d
+  operator-issuer:
+    build: ./operator-issuer
+    container_name: collectmind-operator-issuer
+    profiles: ["operator-issuer"]
+    ports:
+      - "8089:8088"
+    volumes:
+      - ./operator-issuer-config.yaml:/app/operator-issuer-config.yaml:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/.well-known/jwks.json')"]
       interval: 10s

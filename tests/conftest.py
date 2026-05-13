@@ -18,9 +18,13 @@ import pytest
 ORCHESTRATION_BASE_URL = os.environ.get("ORCHESTRATION_BASE_URL", "http://localhost:8081")
 QUERY_BASE_URL = os.environ.get("QUERY_BASE_URL", "http://localhost:8081")
 MOCK_ISSUER_URL = os.environ.get("MOCK_ISSUER_URL", "http://localhost:8088")
+OPERATOR_ISSUER_URL = os.environ.get("OPERATOR_ISSUER_URL", "http://localhost:8089")
 SLM_BASE_URL = os.environ.get("SLM_BASE_URL", "http://localhost:8000")
 COLLECTOR_AI_BASE_URL = os.environ.get("COLLECTOR_AI_BASE_URL", "http://localhost:8080")
 DEFAULT_TENANT = "feature-001-default"
+TENANT_A = "tenant-a"
+TENANT_B = "tenant-b"
+DEFAULT_OPERATOR = "operator-alice"
 DEFAULT_CLIENT_SECRET = "local-dev-only"
 
 
@@ -86,6 +90,47 @@ def require_local_stack() -> None:
         httpx.get(f"{ORCHESTRATION_BASE_URL}/ready", timeout=2.0)
     except httpx.HTTPError:
         pytest.skip("local stack not running; start `docker compose up -d` first")
+
+
+def require_operator_issuer() -> None:
+    """Skip a test if the operator-issuer profile is not running (feature 002)."""
+    try:
+        httpx.get(f"{OPERATOR_ISSUER_URL}/.well-known/jwks.json", timeout=2.0)
+    except httpx.HTTPError:
+        pytest.skip(
+            "operator-issuer not reachable; start `docker compose --profile operator-issuer "
+            "-f infra/compose/docker-compose.yaml up -d operator-issuer`"
+        )
+
+
+def mint_tenant_token(tenant: str) -> str:
+    """Mint a tenant JWT for the named tenant via the mock-issuer."""
+    response = httpx.post(
+        f"{MOCK_ISSUER_URL}/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": tenant,
+            "client_secret": DEFAULT_CLIENT_SECRET,
+        },
+        timeout=10.0,
+    )
+    response.raise_for_status()
+    return str(response.json()["access_token"])
+
+
+def mint_operator_token(operator: str = DEFAULT_OPERATOR) -> str:
+    """Mint an operator JWT (audience=collectmind-operator) via the operator-issuer."""
+    response = httpx.post(
+        f"{OPERATOR_ISSUER_URL}/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": operator,
+            "client_secret": DEFAULT_CLIENT_SECRET,
+        },
+        timeout=10.0,
+    )
+    response.raise_for_status()
+    return str(response.json()["access_token"])
 
 
 def require_slm() -> None:

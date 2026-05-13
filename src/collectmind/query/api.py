@@ -109,3 +109,34 @@ async def erasure_request_status(
     if record is None:
         raise NotFound("erasure_request", request_id)
     return JSONResponse(content=record)
+
+
+@router.get("/api/v1/tenant-config/self")
+async def get_own_tenant_config(
+    request: Request,
+    principal: Principal = Depends(authenticated_principal),
+) -> JSONResponse:
+    """T241: tenant introspects own rate-limit config. FR-013 / FR-013a.
+
+    Cache-first with Postgres fallback per ADR-0008 Part 4. Returns FR-012 defaults
+    if no override row exists for the tenant. Tenant cannot read another tenant's row
+    (RESTRICTIVE RLS on tenant_config refuses cross-tenant SELECT; the cache key is the
+    JWT-derived tenant_id so cross-tenant cache poisoning is impossible by construction).
+    """
+    repo = request.app.state.tenant_config_repo
+    config = await repo.get_for_tenant(principal.tenant_id)
+    body: dict[str, object] = {
+        "tenant_id": config.tenant_id,
+        "inbound": {
+            "sustained_rps": config.inbound.sustained_rps,
+            "burst_capacity": config.inbound.burst_capacity,
+        },
+        "query": {
+            "sustained_rps": config.query.sustained_rps,
+            "burst_capacity": config.query.burst_capacity,
+        },
+        "source": config.source,
+    }
+    if config.updated_at is not None:
+        body["updated_at"] = config.updated_at
+    return JSONResponse(content=body)

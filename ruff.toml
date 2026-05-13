@@ -39,13 +39,13 @@ ignore = [
 [lint.per-file-ignores]
 # Tests: allow security-style + magic-value rules; PLC0415 for fixture-local
 # imports; B017 (blind exception) where the test verifies the broad catch.
-"tests/**" = ["S", "PLR2004", "PLC0415", "B017", "B018", "E501"]
+"tests/**" = ["S", "PLR2004", "PLC0415", "B017", "B018", "E501", "PLW1510"]
 # Simulators and stub modules use non-cryptographic randomness deliberately.
 "src/collectmind/simulators/**" = ["S311"]
 "src/collectmind/deployer/simulator.py" = ["S311"]
 # Scripts: subprocess + url-open are intentional surface (gitleaks wrapper,
 # corpus downloaders, dump helpers).
-"scripts/**" = ["S310", "S603", "S110", "SIM103", "S104"]
+"scripts/**" = ["S310", "S603", "S110", "SIM103", "S104", "PLC0415"]
 # OTel init uses module-level globals + a small late import; intentional.
 "src/collectmind/observability/otel.py" = ["PLW0603", "PLC0415"]
 # Erasure dispatcher and graph runner background tasks are intentionally
@@ -53,6 +53,11 @@ ignore = [
 "src/collectmind/erasure/dispatcher.py" = ["RUF006"]
 "src/collectmind/ingest/http.py" = ["RUF006"]
 "src/collectmind/observability/dashboard_provisioner.py" = ["PLC0415"]
+# Feature 002 Phase 12 deployer wrappers: lazy imports for the default
+# ownership-cache + audit-writer factories (test-fallback path; avoid loading
+# asyncpg + redis-py at module import time).
+"src/collectmind/deployer/node.py" = ["PLC0415"]
+"src/collectmind/deployer/tenant_scope_check.py" = ["PLC0415"]
 # Test-style fixtures: provisioner + metrics test imports inside callable scope.
 "src/collectmind/auth/dependencies.py" = ["PLC0415"]
 "src/collectmind/app.py" = ["PLC0415", "S110"]

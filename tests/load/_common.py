@@ -34,18 +34,23 @@ DEFAULT_TENANT = os.environ.get("LOAD_TENANT_ID", "feature-001-default")
 DEFAULT_CLIENT_SECRET = os.environ.get("LOAD_CLIENT_SECRET", "local-dev-only")
 
 
-def mint_token() -> str:
+def mint_token(tenant: str | None = None) -> str:
     """Mint a JWT against the mock issuer. Used by every Locust user as setup.
 
     Real production load against the cloud stack uses a long-lived service
     credential supplied via Secrets Manager; the mock issuer mirrors that
     surface so the load-test traffic shape is identical to production traffic
-    shape (a Bearer token on every request)."""
+    shape (a Bearer token on every request).
+
+    Feature 002: optional ``tenant`` parameter selects a non-default tenant
+    (tenant-a / tenant-b) for the multi-tenant noisy-neighbor profile (T250).
+    """
+    client_id = tenant or DEFAULT_TENANT
     response = httpx.post(
         f"{MOCK_ISSUER_URL}/token",
         data={
             "grant_type": "client_credentials",
-            "client_id": DEFAULT_TENANT,
+            "client_id": client_id,
             "client_secret": DEFAULT_CLIENT_SECRET,
         },
         timeout=10.0,
@@ -54,13 +59,13 @@ def mint_token() -> str:
     return response.json()["access_token"]
 
 
-def finding_payload(finding_id: str | None = None) -> dict:
+def finding_payload(finding_id: str | None = None, tenant: str | None = None) -> dict:
     """Return a brake-wear diagnostic finding with a unique finding_id.
 
     The candidate signals are the canonical VSS v6.0 leaf names used across
     every integration test in the suite, so the load profile exercises the
     same validator path as the integration tier."""
-    return {
+    payload: dict = {
         "schema_version": "1.0.0",
         "finding_id": finding_id or f"F-load-{uuid.uuid4().hex[:12]}",
         "anomaly_type": "brake_wear_early_stage",
@@ -73,3 +78,6 @@ def finding_payload(finding_id: str | None = None) -> dict:
         "vehicle_scope": ["VIN-LOAD-1"],
         "upstream_confidence": 0.78,
     }
+    if tenant is not None:
+        payload["tenant_id"] = tenant
+    return payload

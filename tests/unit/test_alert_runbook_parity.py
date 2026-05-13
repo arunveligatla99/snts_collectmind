@@ -51,6 +51,29 @@ REQUIRED_SLO_TAGS: tuple[str, ...] = (
     "SC-006",
     "SC-010",
     "SC-012",
+    # Feature 002 Phase 13 extension (T280): SC-013 (break-glass atomic audit) +
+    # SC-014 (tenant_config atomic audit) get an alert each so the operational
+    # surface mirrors the binding-contract surface.
+    "SC-013",
+    "SC-014",
+)
+
+
+# Feature 002 Phase 13 T280: six new alerts MUST be declared in rules.yaml. The set
+# is binding — removing any one is a regression because it leaves an operational gap
+# named in the spec. Each alert name MUST match exactly (case-sensitive).
+#
+# BreakGlassInvoked + BreakGlassBurstInvocation are SPLIT (per Phase 13 review):
+#   - BreakGlassInvoked: severity=page, fires on any invocation (immediate visibility).
+#   - BreakGlassBurstInvocation: severity=critical, fires on 5-min rate > threshold per
+#     operator_subject. Two runbook pages, two distinct mitigation playbooks.
+REQUIRED_PHASE_13_ALERTS: tuple[str, ...] = (
+    "RatelimitSustainedThrottle",  # FR-016 page
+    "RatelimitRedisUnavailable",  # ADR-0008 Part 3 failure-CLOSED counter page
+    "BreakGlassInvoked",  # SC-013 single-invocation page (immediate)
+    "BreakGlassBurstInvocation",  # SC-013 burst-rate critical (5-min)
+    "TenantConfigReloadStalled",  # SC-014 LISTEN/NOTIFY lag page
+    "DeploymentTenantMismatch",  # SC-012 page-tier (feature 002 US4)
 )
 
 
@@ -148,3 +171,57 @@ def test_rules_cover_every_binding_slo() -> None:
         f"rules.yaml does not reference SLO tag(s) {missing}; T111 requires one alert per "
         f"binding SLO. Tag each alert by name, label, or annotation so this check finds it."
     )
+
+
+def test_phase_13_alerts_declared_by_name() -> None:
+    """Phase 13 T280 binds five new alert names. Each MUST appear in ``rules.yaml``.
+
+    The bare-name check guards against silent removal: an unnamed reshuffle that
+    happens to keep the SLO label but drops the canonical alert name (which is what
+    Alertmanager routes on, and what every Phase 12 / Phase 13 runbook + the
+    operational dashboard references) would be a regression.
+
+    Anchors: FR-016 / FR-024 / SC-012 / SC-013 / SC-014 / Principle V / Principle VIII.
+    """
+    doc = _load_rules()
+    declared_names = {alert_name for _group, alert_name, _rule in _iter_alerts(doc)}
+    missing = [name for name in REQUIRED_PHASE_13_ALERTS if name not in declared_names]
+    assert not missing, (
+        f"Phase 13 T280 has not landed: rules.yaml is missing alert(s) {missing}. "
+        f"All five names are binding per `specs/002-multi-tenant-isolation/tasks.md` T280."
+    )
+
+
+def test_phase_13_alerts_carry_severity_strictly_pinned() -> None:
+    """Phase 13 severity tiers pin the operational page-or-critical distinction strictly.
+
+    Per Phase 13 review decision (BreakGlass split):
+      - ``BreakGlassBurstInvocation``: severity=critical (5-min rate exceeds threshold).
+      - All others (``BreakGlassInvoked``, ``RatelimitSustainedThrottle``,
+        ``RatelimitRedisUnavailable``, ``TenantConfigReloadStalled``,
+        ``DeploymentTenantMismatch``): severity=page.
+
+    Feature-001 Phase 5 standardization is binding (page vs critical). The strict pin
+    means a future reshuffle that flips a page-tier alert to critical or vice versa
+    fails this test loudly rather than silently changing the operational page volume.
+    """
+    doc = _load_rules()
+    rule_by_name = {alert: rule for _g, alert, rule in _iter_alerts(doc)}
+    expected_severity: dict[str, str] = {
+        "RatelimitSustainedThrottle": "page",
+        "RatelimitRedisUnavailable": "page",
+        "BreakGlassInvoked": "page",
+        "BreakGlassBurstInvocation": "critical",
+        "TenantConfigReloadStalled": "page",
+        "DeploymentTenantMismatch": "page",
+    }
+    failures: list[str] = []
+    for name, expected in expected_severity.items():
+        rule = rule_by_name.get(name)
+        if rule is None:
+            # Covered by ``test_phase_13_alerts_declared_by_name``; skip here.
+            continue
+        severity = (rule.get("labels") or {}).get("severity")
+        if severity != expected:
+            failures.append(f"{name}: expected severity={expected!r}; got {severity!r}")
+    assert not failures, "Phase 13 severity-tier discipline violations:\n  - " + "\n  - ".join(failures)

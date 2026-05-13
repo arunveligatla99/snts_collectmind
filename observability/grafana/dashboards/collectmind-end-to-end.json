@@ -156,6 +156,50 @@
       "targets": [
         { "expr": "histogram_quantile(0.95, sum(rate(collectmind_policy_outcome_write_delay_seconds_bucket[15m])) by (le))", "refId": "A" }
       ]
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Break-glass volume per operator (SC-013)",
+      "description": "Per-operator break-glass invocation rate. Page on any invocation (BreakGlassInvoked); critical on burst > 0.05/s for 5 min (BreakGlassBurstInvocation).",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 26, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "sum by (operator_subject) (rate(collectmind_break_glass_invocation_total[5m]))", "refId": "A", "legendFormat": "{{operator_subject}}" }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Deployment-rejected count per reason (SC-012)",
+      "description": "Per-reason rate of TenantVehicleMismatch refusals at the deployer node (FR-021/FR-022/FR-023).",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 12, "y": 26, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "sum by (reason) (rate(collectmind_deployment_rejected_total[5m]))", "refId": "A", "legendFormat": "{{reason}}" }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Cross-tenant access-attempt rate per endpoint (FR-009)",
+      "description": "Dashboard-only signal (no alert per Phase 13 review). FR-006 404-collapse path; FR-009 PII-clean.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "sum by (endpoint) (rate(collectmind_cross_tenant_access_attempt_total[5m]))", "refId": "A", "legendFormat": "{{endpoint}}" }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Rate-limit decision split per tenant (FR-014)",
+      "description": "Allow vs reject per tenant per endpoint. Drives RatelimitSustainedThrottle alert and the FR-012 ceiling-utilization signal.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 12, "y": 32, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "sum by (tenant_id, decision) (rate(collectmind_ratelimit_decision_total[5m]))", "refId": "A", "legendFormat": "{{tenant_id}}:{{decision}}" }
+      ]
     }
   ]
 }

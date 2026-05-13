@@ -84,7 +84,13 @@ def test_post_findings_rejects_missing_token() -> None:
     assert response.status_code == 401
     body = response.json()
     detail = body if "code" in body else body.get("detail", body)
-    assert detail.get("code") in {"AUTH_INVALID_TOKEN", "AUTH_TENANT_MISSING"}
+    # Feature 002 added the rate-limit middleware ahead of the FastAPI auth dep
+    # in the request chain; the middleware does its own minimal token check and
+    # returns code="UNAUTHENTICATED" for a missing bearer (see
+    # src/collectmind/ratelimit/middleware.py). The downstream auth dep returns
+    # AUTH_INVALID_TOKEN / AUTH_TENANT_MISSING (errors.py). Accept any of the
+    # three so the contract remains stable across the chain ordering.
+    assert detail.get("code") in {"AUTH_INVALID_TOKEN", "AUTH_TENANT_MISSING", "UNAUTHENTICATED"}
 
 
 def test_post_findings_rejects_unsupported_schema_major() -> None:

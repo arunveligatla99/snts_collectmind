@@ -105,6 +105,51 @@ slm_runtime_image_digest_active = Gauge(
 )
 
 
+# Feature 002 Phase 13 T281: tenant-isolation observability counters. Three counters
+# surface the operational signals the Phase 13 alerts + dashboard panels consume.
+#
+# break_glass_invocation_total: drives BreakGlassInvoked (single-invocation page) AND
+#     BreakGlassBurstInvocation (5-min rate critical). tenant_scope is NOT a label
+#     per Phase 13 review (cardinality + the audit row is the system of record for
+#     which tenants the break-glass touched).
+break_glass_invocation_total = Counter(
+    f"{REGISTRY_NAMESPACE}_break_glass_invocation_total",
+    "Break-glass operator-bypass invocations (FR-005a). Audit row is the system of "
+    "record for affected tenants; this metric is for invocation rate by operator and "
+    "reason.",
+    labelnames=("operator_subject", "reason_code"),
+)
+
+# deployment_rejected_total: drives DeploymentTenantMismatch (page) AND the
+#     "deployment-rejected count per reason" dashboard panel. The two tenant_id labels
+#     are bounded by the tenant directory; reason is enumerated.
+deployment_rejected_total = Counter(
+    f"{REGISTRY_NAMESPACE}_deployment_rejected_total",
+    "Deployments refused by the deployer-node tenant-scope check (FR-022 / FR-023).",
+    labelnames=("policy_declared_tenant_id", "vehicle_owning_tenant_id", "reason"),
+)
+
+# cross_tenant_access_attempt_total: dashboard-only counter (Phase 13 review: NO ALERT).
+#     Surfaces cross-tenant 404-collapse decisions for analytics + operator visibility.
+#     FR-009 ensures the counter is PII-clean (no tenant identifier leaks across).
+cross_tenant_access_attempt_total = Counter(
+    f"{REGISTRY_NAMESPACE}_cross_tenant_access_attempt_total",
+    "Cross-tenant access attempts surfaced as 404s (FR-006 / FR-009). Dashboard signal "
+    "only; deliberately has no alert per Phase 13 review (recorded in DECISIONS.md).",
+    labelnames=("endpoint", "decision"),
+)
+
+# tenant_config_cache_consumer_lag_seconds: drives TenantConfigReloadStalled (SC-014).
+#     Measured wall-clock between Postgres NOTIFY emission and orchestration-api
+#     consumer apply. Lag > 5 s means the LISTEN/NOTIFY consumer is stalled; the alert
+#     fires page-tier so a configuration write doesn't sit unreflected for minutes.
+tenant_config_cache_consumer_lag_seconds = Gauge(
+    f"{REGISTRY_NAMESPACE}_tenant_config_cache_consumer_lag_seconds",
+    "Seconds between most-recent Postgres NOTIFY tenant_config_changed and the "
+    "orchestration-api cache's last applied refresh. SC-014.",
+)
+
+
 def render_prometheus() -> bytes:
     """Return the Prometheus exposition for the registered metrics."""
     return generate_latest()

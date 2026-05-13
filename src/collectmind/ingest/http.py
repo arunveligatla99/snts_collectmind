@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from collectmind.auth.dependencies import authenticated_principal
 from collectmind.auth.jwt_verifier import Principal
-from collectmind.errors import SchemaValidationFailed, SchemaVersionUnsupported
+from collectmind.errors import NotFound, SchemaValidationFailed, SchemaVersionUnsupported
 from collectmind.graph.session import PolicyGenerationSession
 from collectmind.ingest.idempotency import IdempotencyChecker
 from collectmind.ingest.schema_version import SchemaVersionChecker
@@ -38,6 +38,14 @@ async def post_finding(
     x_time_acceleration_factor: str | None = Header(default=None, alias="X-Time-Acceleration-Factor"),
 ) -> JSONResponse:
     body: dict[str, Any] = await request.json()
+
+    # T242 cross-tenant 404 collapse (FR-006 + FR-007): if the body carries an explicit
+    # tenant_id field that disagrees with the JWT-derived tenant identifier, refuse with 404.
+    # The 404 (not 422 or 403) shape is deliberate so the response is not an existence oracle
+    # for "is tenant-X a real tenant" or "does the tenant differ between JWT and body".
+    body_tenant_id = body.get("tenant_id")
+    if body_tenant_id is not None and body_tenant_id != principal.tenant_id:
+        raise NotFound("finding", str(body.get("finding_id") or ""))
 
     schema_check: SchemaVersionChecker = request.app.state.schema_checker
     sv = schema_check.check(body.get("schema_version"))

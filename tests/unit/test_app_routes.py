@@ -93,6 +93,26 @@ def client() -> TestClient:
     app.state.erasure_dispatcher = erasure_dispatcher
     app.state.graph_runner = graph_runner
 
+    # Feature 002 T241: tenant_config_repo for GET /api/v1/tenant-config/self handler.
+    from collectmind.registry.tenant_config import (
+        RateLimitBucket,
+        TenantConfig,
+    )
+
+    class _StubTenantConfigRepo:
+        async def get_for_tenant(self, tenant_id: str) -> TenantConfig:
+            return TenantConfig(
+                tenant_id=tenant_id,
+                inbound=RateLimitBucket(2000, 4000),
+                query=RateLimitBucket(200, 400),
+                source="default",
+            )
+
+    app.state.tenant_config_repo = _StubTenantConfigRepo()
+    # Bypass the rate-limit middleware in TestClient context (it would require a real
+    # JWKS endpoint reachable for JWT verification).
+    app.state.ratelimit_disabled = True
+
     app.dependency_overrides[authenticated_principal] = _override_auth
     test_client = TestClient(app, raise_server_exceptions=True)
     try:

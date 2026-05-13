@@ -1,0 +1,183 @@
+openapi: 3.1.0
+info:
+  title: CollectMind Operator Query API — feature-002 delta (v1.0.0 → v1.1.0)
+  version: 1.1.0
+  description: |
+    This document records the additive changes applied to
+    `contracts/openapi/query-api.v1.yaml` (the canonical contract at repo root)
+    during feature 002. It is a delta document, not a stand-alone contract; the
+    full v1.1.0 schema is the v1.0.0 schema plus the modifications below. The
+    schemathesis contract test in feature 002 fuzzes the merged v1.1.0 surface.
+
+    Version bump rationale: enum-only additions to `AuditEvent.kind` plus a new
+    read endpoint and a new error response (429) on every existing endpoint.
+    All changes are backward-compatible; v1.0.0 clients continue to work.
+
+    See:
+      - spec.md       FR-006, FR-011, FR-013a, FR-014
+      - ADR-0008      decision and rationale (rate-limit response shape)
+      - data-model.md §Extended audit_events.kind enumeration
+  license:
+    name: Apache-2.0
+paths:
+  # ─── NEW ENDPOINT ───────────────────────────────────────────────────────────
+  /tenant-config/self:
+    get:
+      operationId: getOwnTenantConfig
+      summary: Read the requesting tenant's effective rate-limit configuration
+      description: |
+        Returns the rate-limit overrides for the requesting tenant if a row exists
+        in `tenant_config`, otherwise returns the FR-012 defaults. Tenants can
+        introspect their own limits but cannot read any other tenant's row
+        (enforced by the RESTRICTIVE RLS policy on `tenant_config` per FR-013a).
+      responses:
+        '200':
+          description: The requesting tenant's effective rate-limit configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantConfig'
+        '401':
+          description: Missing or invalid tenant JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ─── EXISTING ENDPOINTS: cross-tenant 404 + 429 ─────────────────────────────
+  # Every existing path under query-api.v1.yaml picks up a new 429 response and
+  # a clarification that 404 covers cross-tenant access attempts per FR-006.
+  # The clarifications below are documentation-only; the response codes existed
+  # in v1.0.0 but the semantics around cross-tenant access shift in v1.1.0.
+
+  /policies/{policy_id}:
+    get:
+      responses:
+        '404':
+          description: |
+            Not found OR the policy belongs to a different tenant (FR-006:
+            cross-tenant access returns 404 to avoid an existence oracle).
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /policies/{policy_id}/versions:
+    get:
+      responses:
+        '404':
+          description: Not found OR policy belongs to a different tenant (FR-006).
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /findings/{finding_id}/outcome:
+    get:
+      responses:
+        '404':
+          description: Not found OR finding belongs to a different tenant (FR-006).
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /audit/{correlation_id}:
+    get:
+      responses:
+        '404':
+          description: Not found OR correlation id belongs to a different tenant (FR-006).
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /erasure-requests/{request_id}:
+    get:
+      responses:
+        '404':
+          description: Not found OR request belongs to a different tenant (FR-006).
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+components:
+  responses:
+    RateLimited:
+      description: |
+        The requesting tenant exceeded its configured rate limit (FR-010, FR-011).
+        The `Retry-After` header carries the recommended retry interval in seconds.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+            description: Seconds until the next request is expected to be allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RateLimitedError'
+  schemas:
+    TenantConfig:
+      type: object
+      required: [tenant_id, inbound, query, source]
+      properties:
+        tenant_id:
+          type: string
+        inbound:
+          $ref: '#/components/schemas/RateLimitBucket'
+        query:
+          $ref: '#/components/schemas/RateLimitBucket'
+        source:
+          type: string
+          enum: [default, override]
+          description: |
+            `override` if the tenant has a row in `tenant_config`; `default` if the
+            response carries the FR-012 default values.
+        updated_at:
+          type: string
+          format: date-time
+          description: Present only when source=override.
+    RateLimitBucket:
+      type: object
+      required: [sustained_rps, burst_capacity]
+      properties:
+        sustained_rps:
+          type: integer
+          minimum: 1
+          description: Token-bucket refill rate (requests per second).
+        burst_capacity:
+          type: integer
+          minimum: 1
+          description: Token-bucket maximum capacity.
+    RateLimitedError:
+      type: object
+      required: [code, message, retry_after_seconds]
+      properties:
+        code:
+          type: string
+          enum: [rate_limit_exceeded]
+        message:
+          type: string
+        retry_after_seconds:
+          type: integer
+          minimum: 1
+        correlation_id:
+          type: string
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        correlation_id:
+          type: string
+
+    # AuditEvent.kind enum widening (additive)
+    AuditEvent:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - generated      # existing
+            - validated      # existing
+            - deployed       # existing
+            - outcome        # existing
+            - deployment_rejected   # NEW in feature 002 (operator AND tenant readable when it joins to a tenant-owned finding)
+          # Note: break_glass, tenant_config_change, vehicle_assignment_change are NOT in the regular query API's enum; they are operator-only and live on `audit-admin.v1.yaml`.
